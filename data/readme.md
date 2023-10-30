@@ -9,3 +9,16 @@ This file contains asset index data for the years 2010, 2012, 2014, and 2016.
 
 ## Additional Information
 Another version of the file may include data for 2019. Not yet included!
+
+# `sum_WI_10-18.csv` - Asset Index Data  inlcuding 2018
+
+## Description
+This file contains asset index data for the years 2010, 2012, 2014, 2016, 2018.
+
+## Notable Exclusions
+- **2018**: This year does not have weighted average asset index.
+
+# `large_files/district_code.csv` - Consistent District Code 
+
+## Description
+Code of district, name over years
