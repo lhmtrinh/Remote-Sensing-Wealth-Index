@@ -18,7 +18,7 @@ This file contains asset index data for the years 2010, 2012, 2014, 2016, 2018.
 ## Notable Exclusions
 - **2018**: This year does not have weighted average asset index.
 
-# `large_files/district_code.csv` - Consistent District Code 
+# `district_data.csv` - Consistent District Code 
 
 ## Description
-Code of district, name over years
+Code of district, name over years and the long, lat, area in square meters
