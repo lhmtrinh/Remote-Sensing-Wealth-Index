@@ -10,8 +10,8 @@ Numeric = Union[int, float]
 
 
 def df_to_fc(df: pd.DataFrame, 
-             lat_colname: str = 'lat',
-             lon_colname: str = 'lon') -> ee.FeatureCollection:
+             lat_colname: str = 'centroid_lat',
+             lon_colname: str = 'centroid_lon') -> ee.FeatureCollection:
     '''
     Args
     - csv_path: str, path to CSV file that includes at least two columns for
@@ -62,85 +62,89 @@ def surveyyear_to_range(survey_year: int, nl: bool = False) -> Tuple[str, str]:
     - start_date: str, represents start date for filtering satellite images
     - end_date: str, represents end date for filtering satellite images
     '''
-    if 2003 <= survey_year and survey_year <= 2005:
-        start_date = '2003-1-1'
-        end_date = '2005-12-31'
-    elif 2006 <= survey_year and survey_year <= 2008:
-        start_date = '2006-1-1'
-        end_date = '2008-12-31'
-        if nl:
-            end_date = '2010-12-31'  # artificially extend end date for DMSP
-    elif 2009 <= survey_year and survey_year <= 2011:
-        start_date = '2009-1-1'
-        end_date = '2011-12-31'
-    elif 2012 <= survey_year and survey_year <= 2014:
-        start_date = '2012-1-1'
-        end_date = '2014-12-31'
-    elif 2015 <= survey_year and survey_year <= 2017:
-        start_date = '2015-1-1'
-        end_date = '2017-12-31'
-    else:
-        raise ValueError(f'Invalid survey_year: {survey_year}. '
-                         'Must be between 2009 and 2017 (inclusive)')
+    # switch()
+    # if survey_year == 2010:
+    #     start_date = '2010-1-1'
+    #     end_date = '2010-12-31'
+    # elif 2010 < survey_year and survey_year <= 2012:
+    #     start_date = '2012-1-1'
+    #     end_date = '2012-12-31'
+    #     if nl:
+    #         end_date = '2010-12-31'  # artificially extend end date for DMSP
+    # elif 2009 <= survey_year and survey_year <= 2011:
+    #     start_date = '2009-1-1'
+    #     end_date = '2011-12-31'
+    # elif 2012 <= survey_year and survey_year <= 2014:
+    #     start_date = '2012-1-1'
+    #     end_date = '2014-12-31'
+    # elif 2015 <= survey_year and survey_year <= 2017:
+    #     start_date = '2015-1-1'
+    #     end_date = '2017-12-31'
+    # else:
+    #     raise ValueError(f'Invalid survey_year: {survey_year}. '
+    #                      'Must be between 2009 and 2017 (inclusive)')
+
+    start_date = f'{survey_year}-1-1'
+    end_date = f'{survey_year}-12-31'
     return start_date, end_date
 
 
-# Please consider the qamask for cloud confidence
-def decode_qamask(img: ee.Image) -> ee.Image:
-    '''
-    Args
-    - img: ee.Image, Landsat 5/7/8 image containing 'pixel_qa' band
+# # Please consider the qamask for cloud confidence
+# def decode_qamask(img: ee.Image) -> ee.Image:
+#     '''
+#     Args
+#     - img: ee.Image, Landsat 5/7/8 image containing 'pixel_qa' band
 
-    Returns
-    - masks: ee.Image, contains 5 bands of masks
+#     Returns
+#     - masks: ee.Image, contains 5 bands of masks
 
-    Pixel QA Bit Flags (universal across Landsat 5/7/8)
-    Bit  Attribute
-    0       Fill
-    1       Dilated Cloud
-    2       Cirrus (high confidence)
-    3       Cloud
-    4       Cloud Shadow
-    5       Snow
-    6       Clear
-    7       Water
-    8-9     Clound Confidence
-    10-11:  Cloud Shadow Confidence
-    '''
-    qa = img.select('QA_PIXEL')
-    clear = qa.bitwiseAnd(1 << 6).neq(0)  # 0 = not clear, 1 = clear
-    clear = clear.updateMask(clear).rename(['pxqa_clear'])
+#     Pixel QA Bit Flags (universal across Landsat 5/7/8)
+#     Bit  Attribute
+#     0       Fill
+#     1       Dilated Cloud
+#     2       Cirrus (high confidence)
+#     3       Cloud
+#     4       Cloud Shadow
+#     5       Snow
+#     6       Clear
+#     7       Water
+#     8-9     Clound Confidence
+#     10-11:  Cloud Shadow Confidence
+#     '''
+#     qa = img.select('QA_PIXEL')
+#     clear = qa.bitwiseAnd(1 << 6).neq(0)  # 0 = not clear, 1 = clear
+#     clear = clear.updateMask(clear).rename(['pxqa_clear'])
 
-    water = qa.bitwiseAnd(1 << 7).neq(0)  # 0 = not water, 1 = water
-    water = water.updateMask(water).rename(['pxqa_water'])
+#     water = qa.bitwiseAnd(1 << 7).neq(0)  # 0 = not water, 1 = water
+#     water = water.updateMask(water).rename(['pxqa_water'])
 
-    cloud_shadow = qa.bitwiseAnd(1 << 4).eq(0)  # 0 = shadow, 1 = not shadow
-    cloud_shadow = cloud_shadow.updateMask(cloud_shadow).rename(['pxqa_cloudshadow'])
+#     cloud_shadow = qa.bitwiseAnd(1 << 4).eq(0)  # 0 = shadow, 1 = not shadow
+#     cloud_shadow = cloud_shadow.updateMask(cloud_shadow).rename(['pxqa_cloudshadow'])
 
-    snow = qa.bitwiseAnd(1 << 5).eq(0)  # 0 = snow, 1 = not snow
-    snow = snow.updateMask(snow).rename(['pxqa_snow'])
+#     snow = qa.bitwiseAnd(1 << 5).eq(0)  # 0 = snow, 1 = not snow
+#     snow = snow.updateMask(snow).rename(['pxqa_snow'])
 
-    cloud = qa.bitwiseAnd(1 << 3).eq(0)  # 0 = cloud, 1 = not cloud
-    cloud = cloud.updateMask(cloud).rename(['pxqa_cloud'])
+#     cloud = qa.bitwiseAnd(1 << 3).eq(0)  # 0 = cloud, 1 = not cloud
+#     cloud = cloud.updateMask(cloud).rename(['pxqa_cloud'])
 
-    masks = ee.Image.cat([clear, water, cloud_shadow, snow, cloud])
-    return masks
+#     masks = ee.Image.cat([clear, water, cloud_shadow, snow, cloud])
+#     return masks
 
 
-def mask_qaclear(img: ee.Image) -> ee.Image:
-    '''
-    Args
-    - img: ee.Image
+# def mask_qaclear(img: ee.Image) -> ee.Image:
+#     '''
+#     Args
+#     - img: ee.Image
 
-    Returns
-    - img: ee.Image, input image with cloud-shadow, snow, cloud, and unclear
-        pixels masked out
-    '''
-    qam = decode_qamask(img)
-    cloudshadow_mask = qam.select('pxqa_cloudshadow')
-    snow_mask = qam.select('pxqa_snow')
-    cloud_mask = qam.select('pxqa_cloud')
-    return img.updateMask(cloudshadow_mask).updateMask(snow_mask).updateMask(cloud_mask)
+#     Returns
+#     - img: ee.Image, input image with cloud-shadow, snow, cloud, and unclear
+#         pixels masked out
+#     '''
+#     qam = decode_qamask(img)
+#     cloudshadow_mask = qam.select('pxqa_cloudshadow')
+#     snow_mask = qam.select('pxqa_snow')
+#     cloud_mask = qam.select('pxqa_cloud')
+#     return img.updateMask(cloudshadow_mask).updateMask(snow_mask).updateMask(cloud_mask)
 
 
 def add_latlon(img: ee.Image) -> ee.Image:
@@ -152,11 +156,7 @@ def add_latlon(img: ee.Image) -> ee.Image:
         opt_names=['LON', 'LAT'])
     return img.addBands(latlon)
 
-
-# This will not be correct. As these dataset are different in spatial and unit of measurement.
-# Find something else or convert the old images to new ones
-# the DNB is only available from 4/2012
-def composite_nl(year: int) -> ee.Image:
+def composite_nl(year: int, roi:ee.Geometry) -> ee.Image:
     '''Creates a median-composite nightlights (NL) image.
 
     Args
@@ -164,13 +164,11 @@ def composite_nl(year: int) -> ee.Image:
 
     Returns: ee.Image, contains a single band named 'NIGHTLIGHTS'
     '''
-    if year <= 2011:
-        img_col = ee.ImageCollection('NOAA/DMSP-OLS/CALIBRATED_LIGHTS_V4')
-    else:
-        img_col = ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG')
+    img_col = ee.ImageCollection("NOAA/VIIRS/DNB/ANNUAL_V21")
 
     start_date, end_date = surveyyear_to_range(year, nl=True)
-    return img_col.filterDate(start_date, end_date).median().select([0], ['NIGHTLIGHTS'])
+    # band maximum
+    return img_col.filterBounds(roi).filterDate(start_date, end_date).median().select(['maximum'])
 
 
 def tfexporter(collection: ee.FeatureCollection, export: str, prefix: str,
@@ -326,9 +324,10 @@ def wait_on_tasks(tasks: Mapping[Any, ee.batch.Task],
         time.sleep(poll_interval)
     progbar.close()
 
-
-class LandsatSR:
-    def __init__(self, filterpoly: ee.Geometry, start_date: str,
+    
+class Sentinel:
+    def __init__(self, filterpoly: ee.Geometry, 
+                 start_date: str,
                  end_date: str) -> None:
         '''
         Args
@@ -340,9 +339,13 @@ class LandsatSR:
         self.start_date = start_date
         self.end_date = end_date
 
-        self.l8 = self.init_coll('LANDSAT/LC08/C02/T1_L2').map(self.rescale_l8)
-
-        self.merged = self.l8.sort('system:time_start')
+        self.sentinel_id = 'COPERNICUS/S2_HARMONIZED'
+        self.sentinel = (
+            self.init_coll(self.sentinel_id)
+            .map(self.rescale)
+            .map(self.mask_s2_clouds)
+            .sort('system:time_start')
+            )
 
     def init_coll(self, name: str) -> ee.ImageCollection:
         '''
@@ -356,75 +359,55 @@ class LandsatSR:
         '''
         return (ee.ImageCollection(name)
                 .filterBounds(self.filterpoly)
-                .filterDate(self.start_date, self.end_date))
-
-    # @staticmethod
-    # def rename_l8(img: ee.Image) -> ee.Image:
-    #     '''
-    #     Args
-    #     - img: ee.Image, Landsat 8 image
-
-    #     Returns
-    #     - img: ee.Image, with bands renamed
-
-    #     See: https://developers.google.com/earth-engine/datasets/catalog/LANDSAT_LC08_C01_T1_SR
-
-    #     Name                Scale Factor Description
-    #     B1                  2.75e-05        Band 1 (Ultra Blue) surface reflectance, 0.435-0.451 um
-    #     B2                  2.75e-05        Band 2 (Blue) surface reflectance, 0.452-0.512 um
-    #     B3                  2.75e-05        Band 3 (Green) surface reflectance, 0.533-0.590 um
-    #     B4                  2.75e-05        Band 4 (Red) surface reflectance, 0.636-0.673 um
-    #     B5                  2.75e-05        Band 5 (Near Infrared) surface reflectance, 0.851-0.879 um
-    #     B6                  2.75e-05        Band 6 (Shortwave Infrared 1) surface reflectance, 1.566-1.651 um
-    #     B7                  2.75e-05        Band 7 (Shortwave Infrared 2) surface reflectance, 2.107-2.294 um
-    #     SR_QA_AEROSOL                       Aerosol attributes
-
-    #     ST_B10              0.00341802      Band 10 surface temperature. 10.60-11.19 μm	
-    #     ST_ATRAN            0.0001			Atmospheric Transmittance.
-    #     ST_CDIST            24000		    Pixel distance to cloud.
-    #     ST_DRAD	W/(m^2*sr*um)/ DN	0	28000	0.001			
-    #     Downwelled Radiance. If 'PROCESSING_LEVEL' is set to 'L2SR', this band is fully masked out.
-
-    #     ST_EMIS		0	10000	0.0001			
-    #     Emissivity of Band 10 estimated from ASTER GED. If 'PROCESSING_LEVEL' is set to 'L2SR', this band is fully masked out.
-
-    #     ST_EMSD		0	10000	0.0001			
-    #     Emissivity standard deviation. If 'PROCESSING_LEVEL' is set to 'L2SR', this band is fully masked out.
-
-    #     ST_QA	K	0	32767	0.01			
-    #     Uncertainty of the Surface Temperature band. If 'PROCESSING_LEVEL' is set to 'L2SR', this band is fully masked out.
-
-    #     ST_TRAD	W/(m^2*sr*um)/ DN	0	22000	0.001			
-    #     Thermal band converted to radiance. If 'PROCESSING_LEVEL' is set to 'L2SR', this band is fully masked out.
-
-    #     ST_URAD	W/(m^2*sr*um)/ DN	0	28000	0.001			
-    #     Upwelled Radiance. If 'PROCESSING_LEVEL' is set to 'L2SR', this band is fully masked out.
-
-    #     QA_PIXEL							
-    #     Pixel quality attributes generated from the CFMASK algorithm.
-    #     '''
-    #     newnames = ['AEROS', 'BLUE', 'GREEN', 'RED', 'NIR', 'SWIR1', 'SWIR2',
-    #                 'TEMP1', 'TEMP2', 'sr_aerosol', 'pixel_qa', 'radsat_qa']
-    #     return img.rename(newnames)
-
+                # .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+                .filterDate(self.start_date, self.end_date)
+                )
+    
     @staticmethod
-    def rescale_l8(img: ee.Image) -> ee.Image:
+    def rescale(img: ee.Image) -> ee.Image:
         '''
         Args
-        - img: ee.Image, Landsat 8 image, with bands already renamed
-            by rename_l8()
+        - img: ee.Image, Sentinel-2
 
         Returns
         - img: ee.Image, with bands rescaled
+        Check for the implementation
+        https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_HARMONIZED
         '''
-        opt = img.select(['B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7'])
-        therm = img.select(['B10'])
-        masks = img.select(['SR_QA_AEROSOL', 'QA_PIXEL', 'QA_RADSAT'])
+        # Optical bands blue, green, red
+        opt = img.select(['B2','B3','B4'])
+        # Cloud mask
+        masks = img.select(['QA60'])
 
-        opt = opt.multiply(2.75e-05)
-        therm = therm.multiply(0.00341802)
+        opt = opt.divide(10000)
 
-        scaled = ee.Image.cat([opt, therm, masks]).copyProperties(img)
+        scaled = ee.Image.cat([opt, masks]).copyProperties(img)
+
         # system properties are not copied
         scaled = scaled.set('system:time_start', img.get('system:time_start'))
         return scaled
+    
+    @staticmethod
+    def mask_s2_clouds(image):
+        """Masks clouds in a Sentinel-2 image using the QA band.
+
+        Args:
+            image (ee.Image): A Sentinel-2 image.
+
+        Returns:
+            ee.Image: A cloud-masked Sentinel-2 image.
+        """
+        qa = image.select('QA60')
+
+        # Bits 10 and 11 are clouds and cirrus, respectively.
+        cloud_bit_mask = 1 << 10
+        cirrus_bit_mask = 1 << 11
+
+        # Both flags should be set to zero, indicating clear conditions.
+        mask = (
+            qa.bitwiseAnd(cloud_bit_mask)
+            .eq(0)
+            .And(qa.bitwiseAnd(cirrus_bit_mask).eq(0))
+        )
+
+        return image.updateMask(mask)
