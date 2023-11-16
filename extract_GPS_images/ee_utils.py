@@ -40,112 +40,20 @@ def df_to_fc(df: pd.DataFrame,
     return ee.FeatureCollection(ee_features)
 
 
-def surveyyear_to_range(survey_year: int, nl: bool = False) -> Tuple[str, str]:
+def surveyyear_to_range(survey_year: int) -> Tuple[str, str]:
     '''Returns the start and end dates for filtering satellite images for a
     survey beginning in the specified year.
 
-    Calibrated DMSP Nighttime Lights only exist for 3 relevant date ranges,
-    which Google Earth Engine filters by their start date. For more info, see
-    https://www.ngdc.noaa.gov/eog/dmsp/download_radcal.html.
-
-        DMSP range               | we use for these surveys
-        -------------------------|-------------------------
-        2010-01-11 to 2011-07-31 | 2006 to 2011
-        2010-01-11 to 2010-12-09 | 2006 to 2011
-        2005-11-28 to 2006-12-24 | 2003 to 2005
-
     Args
     - survey_year: int, year that survey was started
-    - nl: bool, whether to use special range for night lights
 
     Returns
     - start_date: str, represents start date for filtering satellite images
     - end_date: str, represents end date for filtering satellite images
     '''
-    # switch()
-    # if survey_year == 2010:
-    #     start_date = '2010-1-1'
-    #     end_date = '2010-12-31'
-    # elif 2010 < survey_year and survey_year <= 2012:
-    #     start_date = '2012-1-1'
-    #     end_date = '2012-12-31'
-    #     if nl:
-    #         end_date = '2010-12-31'  # artificially extend end date for DMSP
-    # elif 2009 <= survey_year and survey_year <= 2011:
-    #     start_date = '2009-1-1'
-    #     end_date = '2011-12-31'
-    # elif 2012 <= survey_year and survey_year <= 2014:
-    #     start_date = '2012-1-1'
-    #     end_date = '2014-12-31'
-    # elif 2015 <= survey_year and survey_year <= 2017:
-    #     start_date = '2015-1-1'
-    #     end_date = '2017-12-31'
-    # else:
-    #     raise ValueError(f'Invalid survey_year: {survey_year}. '
-    #                      'Must be between 2009 and 2017 (inclusive)')
-
     start_date = f'{survey_year}-1-1'
-    end_date = f'{survey_year}-12-31'
+    end_date = f'{survey_year+1}-1-1'
     return start_date, end_date
-
-
-# # Please consider the qamask for cloud confidence
-# def decode_qamask(img: ee.Image) -> ee.Image:
-#     '''
-#     Args
-#     - img: ee.Image, Landsat 5/7/8 image containing 'pixel_qa' band
-
-#     Returns
-#     - masks: ee.Image, contains 5 bands of masks
-
-#     Pixel QA Bit Flags (universal across Landsat 5/7/8)
-#     Bit  Attribute
-#     0       Fill
-#     1       Dilated Cloud
-#     2       Cirrus (high confidence)
-#     3       Cloud
-#     4       Cloud Shadow
-#     5       Snow
-#     6       Clear
-#     7       Water
-#     8-9     Clound Confidence
-#     10-11:  Cloud Shadow Confidence
-#     '''
-#     qa = img.select('QA_PIXEL')
-#     clear = qa.bitwiseAnd(1 << 6).neq(0)  # 0 = not clear, 1 = clear
-#     clear = clear.updateMask(clear).rename(['pxqa_clear'])
-
-#     water = qa.bitwiseAnd(1 << 7).neq(0)  # 0 = not water, 1 = water
-#     water = water.updateMask(water).rename(['pxqa_water'])
-
-#     cloud_shadow = qa.bitwiseAnd(1 << 4).eq(0)  # 0 = shadow, 1 = not shadow
-#     cloud_shadow = cloud_shadow.updateMask(cloud_shadow).rename(['pxqa_cloudshadow'])
-
-#     snow = qa.bitwiseAnd(1 << 5).eq(0)  # 0 = snow, 1 = not snow
-#     snow = snow.updateMask(snow).rename(['pxqa_snow'])
-
-#     cloud = qa.bitwiseAnd(1 << 3).eq(0)  # 0 = cloud, 1 = not cloud
-#     cloud = cloud.updateMask(cloud).rename(['pxqa_cloud'])
-
-#     masks = ee.Image.cat([clear, water, cloud_shadow, snow, cloud])
-#     return masks
-
-
-# def mask_qaclear(img: ee.Image) -> ee.Image:
-#     '''
-#     Args
-#     - img: ee.Image
-
-#     Returns
-#     - img: ee.Image, input image with cloud-shadow, snow, cloud, and unclear
-#         pixels masked out
-#     '''
-#     qam = decode_qamask(img)
-#     cloudshadow_mask = qam.select('pxqa_cloudshadow')
-#     snow_mask = qam.select('pxqa_snow')
-#     cloud_mask = qam.select('pxqa_cloud')
-#     return img.updateMask(cloudshadow_mask).updateMask(snow_mask).updateMask(cloud_mask)
-
 
 def add_latlon(img: ee.Image) -> ee.Image:
     '''Creates a new ee.Image with 2 added bands of longitude and latitude
@@ -343,6 +251,7 @@ class Sentinel:
         self.sentinel = (
             self.init_coll(self.sentinel_id)
             .map(self.rescale)
+            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
             .map(self.mask_s2_clouds)
             .sort('system:time_start')
             )
