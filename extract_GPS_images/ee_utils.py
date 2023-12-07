@@ -40,49 +40,35 @@ def df_to_fc(df: pd.DataFrame,
     return ee.FeatureCollection(ee_features)
 
 
-def surveyyear_to_range(survey_year: int) -> Tuple[str, str]:
+def date_range_for_year_quarter(quarter: int ,survey_year: int) -> Tuple[str, str]:
     '''Returns the start and end dates for filtering satellite images for a
-    survey beginning in the specified year.
+    survey in the specified year and quarter.
 
     Args
     - survey_year: int, year that survey was started
+    - quarter: int, quarter that image is in
 
     Returns
     - start_date: str, represents start date for filtering satellite images
     - end_date: str, represents end date for filtering satellite images
     '''
-    start_date = f'{survey_year}-1-1'
-    end_date = f'{survey_year+1}-1-1'
+    if quarter == 1:
+        start_date = f'{survey_year}-1-1'
+        end_date = f'{survey_year}-3-31'
+    if quarter == 2:
+        start_date = f'{survey_year}-4-1'
+        end_date = f'{survey_year}-6-30'
+    if quarter == 3:
+        start_date = f'{survey_year}-7-1'
+        end_date = f'{survey_year}-9-30'
+    else:
+        start_date = f'{survey_year}-10-1'
+        end_date = f'{survey_year}-12-31'
     return start_date, end_date
 
-def add_latlon(img: ee.Image) -> ee.Image:
-    '''Creates a new ee.Image with 2 added bands of longitude and latitude
-    coordinates named 'LON' and 'LAT', respectively
-    '''
-    latlon = ee.Image.pixelLonLat().select(
-        opt_selectors=['longitude', 'latitude'],
-        opt_names=['LON', 'LAT'])
-    return img.addBands(latlon)
-
-def composite_nl(year: int, roi:ee.Geometry) -> ee.Image:
-    '''Creates a median-composite nightlights (NL) image.
-
-    Args
-    - year: int, start year of survey
-
-    Returns: ee.Image, contains a single band named 'NIGHTLIGHTS'
-    '''
-    img_col = ee.ImageCollection("NOAA/VIIRS/DNB/ANNUAL_V21")
-
-    start_date, end_date = surveyyear_to_range(year, nl=True)
-    # band maximum
-    return img_col.filterBounds(roi).filterDate(start_date, end_date).median().select(['maximum'])
-
-
-def tfexporter(collection: ee.FeatureCollection, export: str, prefix: str,
+def tfexporter(collection: ee.FeatureCollection, prefix: str,
                fname: str, selectors: Optional[ee.List] = None,
-               dropselectors: Optional[ee.List] = None,
-               bucket: Optional[str] = None) -> ee.batch.Task:
+               dropselectors: Optional[ee.List] = None) -> ee.batch.Task:
     '''Creates and starts a task to export a ee.FeatureCollection to a TFRecord
     file in Google Drive or Google Cloud Storage (GCS).
 
@@ -91,7 +77,6 @@ def tfexporter(collection: ee.FeatureCollection, export: str, prefix: str,
 
     Args
     - collection: ee.FeatureCollection
-    - export: str, 'drive' for Drive, 'gcs' for GCS
     - prefix: str, folder name in Drive or GCS to export to, no trailing '/'
     - fname: str, filename
     - selectors: None or ee.List of str, names of properties to include in
@@ -108,32 +93,21 @@ def tfexporter(collection: ee.FeatureCollection, export: str, prefix: str,
 
         selectors = selectors.removeAll(dropselectors)
 
-    if export == 'gcs':
-        task = ee.batch.Export.table.toCloudStorage(
-            collection=collection,
-            description=fname,
-            bucket=bucket,
-            fileNamePrefix=f'{prefix}/{fname}',
-            fileFormat='TFRecord',
-            selectors=selectors)
 
-    elif export == 'drive':
-        task = ee.batch.Export.table.toDrive(
-            collection=collection,
-            description=fname,
-            folder=prefix,
-            fileNamePrefix=fname,
-            fileFormat='TFRecord',
-            selectors=selectors)
-
-    else:
-        raise ValueError(f'export "{export}" is not one of ["gcs", "drive"]')
+    task = ee.batch.Export.table.toDrive(
+        collection=collection,
+        description=fname,
+        folder=prefix,
+        fileNamePrefix=fname,
+        fileFormat='TFRecord',
+        selectors=selectors)
 
     task.start()
     return task
 
 
-def sample_patch(point: ee.Feature, patches_array: ee.Image,
+def sample_patch(point: ee.Feature, 
+                 patches_array: ee.Image,
                  scale: Numeric) -> ee.Feature:
     '''Extracts an image patch at a specific point.
 
@@ -152,15 +126,23 @@ def sample_patch(point: ee.Feature, patches_array: ee.Image,
         numPixels=None,
         dropNulls=False,
         tileScale=12)
-    return arrays_samples.first().copyProperties(point)
+    sample_feature = arrays_samples.first()
 
+    # Copy properties from the original image and the point
+    sample_feature = sample_feature.copyProperties(source=patches_array)
+    sample_feature = sample_feature.copyProperties(source=point)
+
+    return sample_feature
 
 def get_array_patches(
-        img: ee.Image, scale: Numeric, ksize: Numeric,
-        points: ee.FeatureCollection, export: str,
-        prefix: str, fname: str,
+        img: ee.Image, 
+        scale: Numeric, 
+        ksize: Numeric,
+        points: ee.FeatureCollection, 
+        prefix: str, 
+        fname: str,
         selectors: Optional[ee.List] = None,
-        dropselectors: Optional[ee.List] = None, bucket: Optional[str] = None
+        dropselectors: Optional[ee.List] = None, 
         ) -> ee.batch.Task:
     '''Creates and starts a task to export square image patches in TFRecord
     format to Google Drive or Google Cloud Storage (GCS). The image patches are
@@ -189,9 +171,9 @@ def get_array_patches(
     samples = points.map(lambda pt: sample_patch(pt, patches_array, scale))
 
     # export to a TFRecord file which can be loaded directly in TensorFlow
-    return tfexporter(collection=samples, export=export, prefix=prefix,
+    return tfexporter(collection=samples, prefix=prefix,
                       fname=fname, selectors=selectors,
-                      dropselectors=dropselectors, bucket=bucket)
+                      dropselectors=dropselectors)
 
 
 def wait_on_tasks(tasks: Mapping[Any, ee.batch.Task],
@@ -246,13 +228,14 @@ class Sentinel:
         self.filterpoly = filterpoly
         self.start_date = start_date
         self.end_date = end_date
+        self.buffer_area = self.filterpoly.buffer(224 * 20 / 2)
 
         self.sentinel_id = 'COPERNICUS/S2_HARMONIZED'
         self.sentinel = (
             self.init_coll(self.sentinel_id)
             .map(self.rescale)
-            .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
-            .map(self.mask_s2_clouds)
+            .map(lambda img: self.calculate_cloud_coverage(img ,self.buffer_area ))
+            .sort('cloud_coverage')
             .sort('system:time_start')
             )
 
@@ -268,7 +251,6 @@ class Sentinel:
         '''
         return (ee.ImageCollection(name)
                 .filterBounds(self.filterpoly)
-                # .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
                 .filterDate(self.start_date, self.end_date)
                 )
     
@@ -283,12 +265,11 @@ class Sentinel:
         Check for the implementation
         https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_HARMONIZED
         '''
-        # Optical bands blue, green, red
-        opt = img.select(['B2','B3','B4'])
+        # bands blue, green, red, NIR, SWIR1 and SWIR2
+        opt = img.select(['B2','B3','B4','B8','B11','B12']).divide(10000)
+        
         # Cloud mask
         masks = img.select(['QA60'])
-
-        opt = opt.divide(10000)
 
         scaled = ee.Image.cat([opt, masks]).copyProperties(img)
 
@@ -297,26 +278,46 @@ class Sentinel:
         return scaled
     
     @staticmethod
-    def mask_s2_clouds(image):
-        """Masks clouds in a Sentinel-2 image using the QA band.
+    def calculate_cloud_coverage(image, buffer_area):
+        """Calculates cloud coverage within a given buffer area.
 
         Args:
             image (ee.Image): A Sentinel-2 image.
+            buffer_area (ee.Geometry): The area over which to calculate cloud coverage.
 
         Returns:
-            ee.Image: A cloud-masked Sentinel-2 image.
+            ee.Image: A Sentinel-2 image with a cloud coverage property.
         """
-        qa = image.select('QA60')
+        qa = image.select('QA60')  # Ensure QA60 band is integer
 
         # Bits 10 and 11 are clouds and cirrus, respectively.
         cloud_bit_mask = 1 << 10
         cirrus_bit_mask = 1 << 11
 
-        # Both flags should be set to zero, indicating clear conditions.
-        mask = (
-            qa.bitwiseAnd(cloud_bit_mask)
-            .eq(0)
-            .And(qa.bitwiseAnd(cirrus_bit_mask).eq(0))
-        )
+        # Flags indicating clouds and cirrus.
+        cloud_mask = qa.bitwiseAnd(cloud_bit_mask).neq(0)
+        cirrus_mask = qa.bitwiseAnd(cirrus_bit_mask).neq(0)
 
-        return image.updateMask(mask)
+        # Combine cloud and cirrus masks
+        combined_mask = cloud_mask.Or(cirrus_mask)
+
+        # Calculate the sum of cloud and cirrus pixels within the buffer area.
+        cloud_pixel_count = combined_mask.reduceRegion(
+            reducer=ee.Reducer.sum(),
+            geometry=buffer_area,
+            scale=60,  # Match the scale to QA60 band resolution
+            maxPixels=1e9
+        ).getNumber('QA60')
+
+        # Calculate the total number of pixels in the buffer area.
+        total_pixel_count = ee.Image.pixelArea().reduceRegion(
+            reducer=ee.Reducer.sum(),
+            geometry=buffer_area,
+            scale=60,  # Match the scale to QA60 band resolution
+            maxPixels=1e9
+        ).getNumber('area')
+
+        # Calculate cloud coverage percentage.
+        cloud_coverage = cloud_pixel_count.divide(total_pixel_count).multiply(100)
+
+        return image.set('cloud_coverage', cloud_coverage)
