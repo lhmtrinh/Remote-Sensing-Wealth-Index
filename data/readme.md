@@ -22,3 +22,13 @@ This file contains asset index data for the years 2010, 2012, 2014, 2016, 2018.
 
 ## Description
 Code of district, name over years and the long, lat, area in square meters
+
+# `ward_WI_unweigthedPCA.csv` - Asset index 
+
+## Description
+Asset index per ward for national survey in 2014 and 2019
+
+# `ward_data.csv` - Ward data and location 
+
+## Description
+Divide VN into grid of 30m/px by 255 px. Each row is a cell id and a ward within it. If a cell has more than 1 ward within then there are additional rows for them
