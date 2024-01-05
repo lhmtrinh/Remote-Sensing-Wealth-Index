@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
 from torchvision import models
-from transformers import AutoModelForSequenceClassification
 
-def load_resnet_model(model_name, num_classes):
+def load_resnet_model(model_name, num_classes, num_input_channels= 24):
     """
-    Loads a pre-trained ResNet model and modifies the fully connected layer.
+    Loads a pre-trained ResNet model and modifies the fully connected layer and conv1 layer to accept more channels.
 
     Args:
     - model_name (str): Name of the ResNet model to load.
@@ -27,19 +26,25 @@ def load_resnet_model(model_name, num_classes):
     # Modify the fully connected layer
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, num_classes)
+    
+    # Modify resnet to include more input channels
+    model = modify_resnet_model(model, num_input_channels)
 
     return model
 
-def load_transformer_model(model_name, num_classes):
-    """
-    Loads a pre-trained Hugging Face transformer model for sequence classification.
+def modify_resnet_model(model, num_input_channels):
+    # Load a pre-trained ResNet model
+    original_conv1 = model.conv1
 
-    Args:
-    - model_name (str): Transformer model name or path.
-    - num_classes (int): Number of classes for the sequence classification task.
+    # Create a new Conv2d layer with 24 input channels
+    # but the same output channels, kernel size, stride, padding, etc., as the original conv1
+    model.conv1 = nn.Conv2d(num_input_channels, original_conv1.out_channels, 
+                          kernel_size=original_conv1.kernel_size, 
+                          stride=original_conv1.stride, 
+                          padding=original_conv1.padding, 
+                          bias=False)
+    
+    # Initialize the weights for the new conv1 layer
+    nn.init.kaiming_normal_(model.conv1.weight, mode='fan_out', nonlinearity='relu')
 
-    Returns:
-    - model (transformers.PreTrainedModel): Transformer model for sequence classification.
-    """
-    model = AutoModelForSequenceClassification.from_pretrained(model_name, num_labels=num_classes)
     return model
