@@ -5,8 +5,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 
-BAND_KEYS = ['B2_1','B2_2','B2_3','B2_4','B3_1','B3_2','B3_3','B3_4','B4_1','B4_2','B4_3','B4_4','B8_1','B8_2','B8_3','B8_4','B11_1','B11_2','B11_3','B11_4','B12_1','B12_2','B12_3','B12_4']
+
+BAND_KEYS = [
+    'B4_1','B3_1','B2_1',
+    'B4_2','B3_2','B2_2',
+    'B4_3','B3_3','B2_3',
+    'B4_4','B3_4','B2_4',
+    'B8_1','B11_1','B12_1',
+    'B8_2','B11_2','B12_2',
+    'B8_3','B11_3','B12_3',
+    'B8_4','B11_4','B12_4']
+
 SCALAR_KEYS = ['latitude', 'longitude', 'wi']
+
 class SpectralImage:
     def __init__(self, bands_data, scalars):
         """
@@ -63,68 +74,134 @@ class SpectralImage:
     
     ### TODO: Implement code to peform transformation for RGB channels. Figure out the statistics for other channels
 
-class TFRecordImageDataset(Dataset):
-    def __init__(self, file_paths, size=225):
-        """
-        Custom dataset for reading TFRecord files.
-        Args:
-        - file_paths (list): List of paths to TFRecord files.
-        - image_keys (list): List of keys for image data in the TFRecord files.
-        - scalar_keys (list): List of keys for scalar data in the TFRecord files.
-        - size (int): The size of each dimension for image data.
-        """
-        self.file_paths = file_paths
-        self.size = size
+# class TFRecordImageDataset(Dataset):
+#     def __init__(self, file_paths, size=225):
+#         """
+#         Custom dataset for reading TFRecord files.
+#         Args:
+#         - file_paths (list): List of paths to TFRecord files.
+#         - image_keys (list): List of keys for image data in the TFRecord files.
+#         - scalar_keys (list): List of keys for scalar data in the TFRecord files.
+#         - size (int): The size of each dimension for image data.
+#         """
+#         self.file_paths = file_paths
+#         self.size = size
 
-    def __len__(self):
-        return len(self.file_paths)
+#     def __len__(self):
+#         return len(self.file_paths)
 
-    def __getitem__(self, idx):
-        raw_record = next(iter(tf.data.TFRecordDataset(self.file_paths[idx], compression_type="GZIP").take(1)))
-        example = tf.train.Example()
-        example.ParseFromString(raw_record.numpy())
+#     def __getitem__(self, idx):
+#         raw_record = next(iter(tf.data.TFRecordDataset(self.file_paths[idx], compression_type="GZIP").take(1)))
+#         example = tf.train.Example()
+#         example.ParseFromString(raw_record.numpy())
 
-        # Extract scalar values
-        scalars = {key: self._extract_scalar_value(example, key) for key in SCALAR_KEYS}
+#         # Extract scalar values
+#         scalars = {key: self._extract_scalar_value(example, key) for key in SCALAR_KEYS}
 
-        # Extract image tensors
-        images = {key: self._extract_image_tensor(example, key) for key in BAND_KEYS}
+#         # Extract image tensors
+#         images = {key: self._extract_image_tensor(example, key) for key in BAND_KEYS}
 
-        # Create a SpectralImage object
-        spectral_image = SpectralImage(images, scalars)
-        return spectral_image
+#         # Create a SpectralImage object
+#         spectral_image = SpectralImage(images, scalars)
 
-    def _extract_scalar_value(self, example, key):
-        # Extracts a scalar value from the TFRecord example
-        values = example.features.feature[key].float_list.value
-        return values[0] if values else None  # Return None or a default value if the list is empty
+#         # Extract the 'wi' label
+#         label = scalars.get('wi', 0)  # Default to 0 if 'wi' is not found
 
-    def _extract_image_tensor(self, example, key):
-        # Extracts and converts an image tensor from the TFRecord example
-        tensor = np.array(example.features.feature[key].float_list.value).reshape(self.size, self.size)
-        return torch.tensor(tensor, dtype=torch.float)
+#         return spectral_image , label
+
+#     def _extract_scalar_value(self, example, key):
+#         # Extracts a scalar value from the TFRecord example
+#         values = example.features.feature[key].float_list.value
+#         return values[0] if values else None  # Return None or a default value if the list is empty
+
+#     def _extract_image_tensor(self, example, key):
+#         # Extracts and converts an image tensor from the TFRecord example
+#         tensor = np.array(example.features.feature[key].float_list.value).reshape(self.size, self.size)
+#         return torch.tensor(tensor, dtype=torch.float)
     
-
+# def create_dataloader(file_paths, batch_size, num_workers=4, shuffle=True):
+#     dataset = TFRecordImageDataset(file_paths)
+#     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=spectral_image_collate)
+#     return data_loader
 def spectral_image_collate(batch):
     """
-    Collate function to combine a list of SpectralImage objects into a batch tensor.
+    Collate function to combine a list of SpectralImage objects and labels into a batch.
 
     Args:
-    - batch (list): A list of SpectralImage objects.
+    - batch (list): A list of tuples, each containing a SpectralImage object and a label.
 
     Returns:
-    - torch.Tensor: A tensor of shape [batch_size, channels, height, width]
+    - Tuple containing two elements:
+        - A tensor of shape [batch_size, channels, height, width] for the images.
+        - A tensor of shape [batch_size] for the labels.
     """
-    # Ensure each tensor is of shape [1, height, width]
-    batch_tensors = [torch.cat([image.bands_data[key].unsqueeze(0) for key in BAND_KEYS], dim=0) for image in batch]
+    # Separate images and labels
+    images, labels = zip(*batch)
+
+    # Stack all channels of each SpectralImage object
+    batch_tensors = [torch.cat([image.bands_data[key].unsqueeze(0) for key in BAND_KEYS], dim=0) for image in images]
 
     # Stack all images to create a batch
     batch_tensor = torch.stack(batch_tensors, dim=0)
 
-    return batch_tensor
+    # Convert labels to a tensor
+    labels_tensor = torch.tensor(labels, dtype=torch.float)
 
+    return batch_tensor, labels_tensor
 
-def create_dataloader(file_paths, batch_size, num_workers=4, shuffle=True):
-    dataset = TFRecordImageDataset(file_paths)
-    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=spectral_image_collate)
+def read_tfrecord(tfrecord_path, size=225):
+    """
+    Reads a single TFRecord file and extracts the images and label.
+
+    Args:
+    - tfrecord_path (str): Path to the TFRecord file.
+    - size (int): The size of each dimension for image data.
+
+    Returns:
+    - SpectralImage: The extracted spectral image object.
+    - float: The extracted label.
+    """
+    raw_record = next(iter(tf.data.TFRecordDataset(tfrecord_path, compression_type="GZIP").take(1)))
+    example = tf.train.Example()
+    example.ParseFromString(raw_record.numpy())
+
+    # Extract scalar values
+    scalars = {key: _extract_scalar_value(example, key) for key in SCALAR_KEYS}
+
+    # Extract image tensors
+    images = {key: _extract_image_tensor(example, key, size) for key in BAND_KEYS}
+
+    # Create a SpectralImage object
+    spectral_image = SpectralImage(images, scalars)
+
+    # Extract the 'wi' label
+    label = scalars.get('wi', 0)  # Default to 0 if 'wi' is not found
+    
+    return spectral_image_collate([(spectral_image, label)])
+
+def _extract_scalar_value(example, key):
+    # Extracts a scalar value from the TFRecord example
+    values = example.features.feature[key].float_list.value
+    return values[0] if values else None  # Return None or a default value if the list is empty
+
+def _extract_image_tensor(example, key, size):
+    # Extracts and converts an image tensor from the TFRecord example
+    tensor = np.array(example.features.feature[key].float_list.value).reshape(size, size)
+    return torch.tensor(tensor, dtype=torch.float)
+
+class ConcatenatedDataset(Dataset):
+    def __init__(self, data_file):
+        self.data = torch.load(data_file)['data']
+        self.labels = torch.load(data_file)['labels']
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx], self.labels[idx]
+    
+
+def create_dataloader(file_path, batch_size, num_workers=4, shuffle=True):
+    dataset = ConcatenatedDataset(file_path)
+    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers= num_workers, shuffle=shuffle)
     return data_loader
