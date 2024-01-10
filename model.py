@@ -4,7 +4,7 @@ from torchvision import models
 
 NUM_CHANNELS = 24
 
-def load_resnet_model(model_name, num_classes, num_input_channels= 24):
+def load_resnet_model(model_name, num_classes):
     """
     Loads a pre-trained ResNet model and modifies the fully connected layer and conv1 layer to accept more channels.
 
@@ -30,7 +30,7 @@ def load_resnet_model(model_name, num_classes, num_input_channels= 24):
     model.fc = nn.Linear(num_ftrs, num_classes)
     
     # Modify resnet to include more input channels
-    model = modify_resnet_model(model, num_input_channels)
+    model = modify_resnet_model(model)
 
     return model
 

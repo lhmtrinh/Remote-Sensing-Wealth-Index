@@ -74,55 +74,6 @@ class SpectralImage:
     
     ### TODO: Implement code to peform transformation for RGB channels. Figure out the statistics for other channels
 
-# class TFRecordImageDataset(Dataset):
-#     def __init__(self, file_paths, size=225):
-#         """
-#         Custom dataset for reading TFRecord files.
-#         Args:
-#         - file_paths (list): List of paths to TFRecord files.
-#         - image_keys (list): List of keys for image data in the TFRecord files.
-#         - scalar_keys (list): List of keys for scalar data in the TFRecord files.
-#         - size (int): The size of each dimension for image data.
-#         """
-#         self.file_paths = file_paths
-#         self.size = size
-
-#     def __len__(self):
-#         return len(self.file_paths)
-
-#     def __getitem__(self, idx):
-#         raw_record = next(iter(tf.data.TFRecordDataset(self.file_paths[idx], compression_type="GZIP").take(1)))
-#         example = tf.train.Example()
-#         example.ParseFromString(raw_record.numpy())
-
-#         # Extract scalar values
-#         scalars = {key: self._extract_scalar_value(example, key) for key in SCALAR_KEYS}
-
-#         # Extract image tensors
-#         images = {key: self._extract_image_tensor(example, key) for key in BAND_KEYS}
-
-#         # Create a SpectralImage object
-#         spectral_image = SpectralImage(images, scalars)
-
-#         # Extract the 'wi' label
-#         label = scalars.get('wi', 0)  # Default to 0 if 'wi' is not found
-
-#         return spectral_image , label
-
-#     def _extract_scalar_value(self, example, key):
-#         # Extracts a scalar value from the TFRecord example
-#         values = example.features.feature[key].float_list.value
-#         return values[0] if values else None  # Return None or a default value if the list is empty
-
-#     def _extract_image_tensor(self, example, key):
-#         # Extracts and converts an image tensor from the TFRecord example
-#         tensor = np.array(example.features.feature[key].float_list.value).reshape(self.size, self.size)
-#         return torch.tensor(tensor, dtype=torch.float)
-    
-# def create_dataloader(file_paths, batch_size, num_workers=4, shuffle=True):
-#     dataset = TFRecordImageDataset(file_paths)
-#     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=spectral_image_collate)
-#     return data_loader
 def spectral_image_collate(batch):
     """
     Collate function to combine a list of SpectralImage objects and labels into a batch.
@@ -205,3 +156,5 @@ def create_dataloader(file_path, batch_size, num_workers=4, shuffle=True):
     dataset = ConcatenatedDataset(file_path)
     data_loader = DataLoader(dataset, batch_size=batch_size, num_workers= num_workers, shuffle=shuffle)
     return data_loader
+
+
