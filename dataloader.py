@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
+from torchvision import transforms
 
 
 BAND_KEYS = [
@@ -140,21 +141,39 @@ def _extract_image_tensor(example, key, size):
     tensor = np.array(example.features.feature[key].float_list.value).reshape(size, size)
     return torch.tensor(tensor, dtype=torch.float)
 
+class ResizeTransform:
+    """Transform to crop and resize the image to 224x224."""
+    def __call__(self, x):
+        return x[:, :224, :224]
+
 class ConcatenatedDataset(Dataset):
     def __init__(self, data_file):
         self.data = torch.load(data_file)['data']
         self.labels = torch.load(data_file)['labels']
+        self.transform = transforms.Compose([
+            ResizeTransform()
+        ])
+        # Define bin edges for label binning
+        min_label = 0.280953
+        max_label = 3.171482
+        self.bin_edges = np.linspace(min_label, max_label, num=11)  # 10 bins -> 11 edges
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
+        data, label = self.data[idx], self.labels[idx]
+        if self.transform:
+            data = self.transform(data)
+
+        # Bin the label
+        binned_label = np.digitize(label, self.bin_edges) - 1  # Subtract 1 to get bins from 0 to 9
+
+        return data, binned_label
     
 
-def create_dataloader(file_path, batch_size, num_workers=4, shuffle=True):
+def create_dataloader(file_path, batch_size, num_workers=4):
     dataset = ConcatenatedDataset(file_path)
-    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers= num_workers, shuffle=shuffle)
+    # Shuffle to false because when we create pth files for data, we have already shuffled them
+    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers= num_workers, shuffle=False)
     return data_loader
-
-
