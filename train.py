@@ -4,6 +4,7 @@ import torch.optim as optim
 from checkpoint import save_checkpoint
 from tqdm import tqdm
 from dataloader import create_dataloader
+from sklearn.metrics import f1_score
 
 def train_model(model, train_files, val_files, device, epochs=10, learning_rate=0.001, batch_size=64):
     """
@@ -30,43 +31,44 @@ def train_model(model, train_files, val_files, device, epochs=10, learning_rate=
         # Training
         model.train()
         total_train_loss = 0
+        total_train_samples = 0
+
         for idx, train_file in enumerate(train_files):
             train_loader = create_dataloader(train_file, batch_size)
-            print(f'Train data loader {idx+1}')
             for inputs, labels in tqdm(train_loader):
-
-                inputs = inputs.to(device)
-                labels = labels.to(device)
-
+                inputs, labels = inputs.to(device), labels.to(device)
                 optimizer.zero_grad()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
-                total_train_loss += loss.item()
-
-            del(train_loader)
-
-        avg_train_loss = total_train_loss / len(train_files)
+                total_train_loss += loss.item() * inputs.size(0)
+                total_train_samples += inputs.size(0)
+        avg_train_loss = total_train_loss / total_train_samples
 
         # Validation
         model.eval()
         total_val_loss = 0
+        total_val_samples = 0
+        all_val_labels = []
+        all_val_preds = []
+
         with torch.no_grad():
-            for idx, val_file in enumerate(val_files):
+            for val_file in val_files:
                 val_loader = create_dataloader(val_file, batch_size)
-                print(f'Val data loader {idx+1}')
                 for inputs, labels in tqdm(val_loader):
-
-                    inputs = inputs.to(device)
-                    labels = labels.to(device)
-
+                    inputs, labels = inputs.to(device), labels.to(device)
                     outputs = model(inputs)
                     loss = criterion(outputs, labels)
-                    total_val_loss += loss.item()
-                del(val_loader)
+                    total_val_loss += loss.item() * inputs.size(0)
+                    total_val_samples += inputs.size(0)
+                    all_val_labels.extend(labels.cpu().numpy())
+                    all_val_preds.extend(outputs.argmax(dim=1).cpu().numpy())
 
-        avg_val_loss = total_val_loss / len(val_files)
+        # Calculate F1 scores
+        f1_macro = f1_score(all_val_labels, all_val_preds, average='macro')
+        f1_micro = f1_score(all_val_labels, all_val_preds, average='micro')
+        avg_val_loss = total_val_loss / total_val_samples
 
         # Save checkpoint after each epoch
         is_best = avg_val_loss < best_val_loss
@@ -74,8 +76,8 @@ def train_model(model, train_files, val_files, device, epochs=10, learning_rate=
             best_val_loss = avg_val_loss
             save_checkpoint(model, f'checkpoint_epoch_{epoch+1}.pth')
 
-        print(f'Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}')
-
+        print(f'Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, F1 Macro: {f1_macro:.4f}, F1 Micro: {f1_micro:.4f}')
+    
     # Save the trained model
     save_checkpoint(model, f'checkpoint_epoch_{epoch+1}.pth')
     print('Training completed and model saved.')
