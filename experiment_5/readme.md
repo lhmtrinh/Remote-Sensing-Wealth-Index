@@ -1,4 +1,5 @@
 resnet50 24 channels with 5 bins
+using train_efficient.py
 
 100%|██████████| 16/16 [00:09<00:00,  1.63it/s]
 100%|██████████| 16/16 [00:05<00:00,  3.03it/s]

@@ -1,4 +1,5 @@
 resnet 50 with 24 channels. labels divided into 20 bins
+using train_efficient
 
 100%|██████████| 16/16 [00:10<00:00,  1.58it/s]
 100%|██████████| 16/16 [00:05<00:00,  3.16it/s]
