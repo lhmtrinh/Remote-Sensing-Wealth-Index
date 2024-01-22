@@ -46,7 +46,7 @@ class CombinedResNet(nn.Module):
         self.resnet4 = initialize_resnet(model_name)
 
         # Final fully connected layer
-        if model_name == 'resnet50':
+        if model_name == 'resnet50' or model_name == 'resnet34':
             num_in = 2048
         else:
             num_in = 512
