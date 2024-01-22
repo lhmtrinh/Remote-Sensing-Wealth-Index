@@ -1,0 +1,1 @@
+Experiment 1: classification 10 classes. 1 resnet 50 with 24 channels

@@ -2,3 +2,5 @@ large_files
 test_ground
 data/*records*
 myenv
+*.pth
+*.pyc

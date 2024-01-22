@@ -8,7 +8,7 @@ from sklearn.metrics import f1_score
 import threading
 import queue
 
-def train_model(model, train_files, val_files, device, regression, epochs=10, learning_rate=0.001, batch_size=64):
+def train_model(model, train_files, val_files, device, epochs=10, learning_rate=0.001, batch_size=64):
     """
     Trains the model and performs validation.
 
@@ -29,7 +29,7 @@ def train_model(model, train_files, val_files, device, regression, epochs=10, le
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     def load_data(file, data_queue):
-        loader = create_dataloader(file, regression, batch_size)
+        loader = create_dataloader(file, False, batch_size)
         data_queue.put(loader)
 
 

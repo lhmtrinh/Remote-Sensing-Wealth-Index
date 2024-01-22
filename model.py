@@ -78,3 +78,4 @@ def modify_resnet_model(model):
     model.conv1 = new_conv1
 
     return model
+

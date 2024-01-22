@@ -147,7 +147,8 @@ class ResizeTransform:
         return x[:, :224, :224]
 
 class ConcatenatedDataset(Dataset):
-    def __init__(self, data_file):
+    def __init__(self, data_file, regression):
+        self.regression = regression
         self.data = torch.load(data_file)['data']
         self.labels = torch.load(data_file)['labels']
         self.transform = transforms.Compose([
@@ -156,7 +157,7 @@ class ConcatenatedDataset(Dataset):
         # Define bin edges for label binning
         min_label = 0.280953
         max_label = 3.171482
-        self.bin_edges = np.linspace(min_label, max_label, num=11)  # 10 bins -> 11 edges
+        self.bin_edges = np.linspace(min_label, max_label, num=6)  # 10 bins -> 11 edges
 
     def __len__(self):
         return len(self.data)
@@ -166,14 +167,16 @@ class ConcatenatedDataset(Dataset):
         if self.transform:
             data = self.transform(data)
 
+        if self.regression: 
+            return data, label
+        
         # Bin the label
         binned_label = np.digitize(label, self.bin_edges) - 1  # Subtract 1 to get bins from 0 to 9
-
         return data, binned_label
     
 
-def create_dataloader(file_path, batch_size, num_workers=4):
-    dataset = ConcatenatedDataset(file_path)
+def create_dataloader(file_path, regression, batch_size, num_workers=4):
+    dataset = ConcatenatedDataset(file_path, regression)
     # Shuffle to false because when we create pth files for data, we have already shuffled them
     data_loader = DataLoader(dataset, batch_size=batch_size, num_workers= num_workers, shuffle=False)
     return data_loader
