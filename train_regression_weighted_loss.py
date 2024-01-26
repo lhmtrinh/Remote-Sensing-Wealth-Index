@@ -43,7 +43,7 @@ def train_model(model, train_files, val_files, device, dense_weight_model,epochs
                 inputs, labels = inputs.to(device), labels.to(device)
                 optimizer.zero_grad()
                 outputs = model(inputs).squeeze()
-                loss = criterion(outputs, labels, dense_weight_model)
+                loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
                 total_train_loss += loss.item() * inputs.size(0)
@@ -75,7 +75,7 @@ def train_model(model, train_files, val_files, device, dense_weight_model,epochs
                 for inputs, labels in tqdm(val_loader):
                     inputs, labels = inputs.to(device), labels.to(device)
                     outputs = model(inputs).squeeze()
-                    loss = criterion(outputs, labels, dense_weight_model)
+                    loss = criterion(outputs, labels)
                     total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
                     val_preds.extend(outputs.detach().cpu().numpy())

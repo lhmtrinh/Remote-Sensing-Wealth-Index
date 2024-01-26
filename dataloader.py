@@ -179,9 +179,12 @@ class ConcatenatedDataset(Dataset):
         with h5py.File(data_file, 'r') as h5f:
             self.data = torch.from_numpy(h5f['data'][:]).float()
             self.labels = torch.from_numpy(h5f['labels'][:]).float()
+        # self.transform = transforms.Compose([
+        #     ResizeTransform(),
+        #     NormalizeRGBChannels() 
+        # ])
         self.transform = transforms.Compose([
-            ResizeTransform(),
-            NormalizeRGBChannels() 
+            ResizeTransform()
         ])
 
         # Define bin edges for label binning
