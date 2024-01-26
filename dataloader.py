@@ -177,7 +177,7 @@ class ConcatenatedDataset(Dataset):
     def __init__(self, data_file, regression):
         self.regression = regression
         with h5py.File(data_file, 'r') as h5f:
-            self.data = torch.from_numpy(h5f['data'][:]).float()
+            self.data = torch.from_numpy(h5f['data'][:]).float().half()
             self.labels = torch.from_numpy(h5f['labels'][:]).float()
         # self.transform = transforms.Compose([
         #     ResizeTransform(),
@@ -188,8 +188,8 @@ class ConcatenatedDataset(Dataset):
         ])
 
         # Define bin edges for label binning
-        min_label = 0.280953
-        max_label = 3.171482
+        min_label = 0.28095343708992004
+        max_label = 3.094515085220337
         self.bin_edges = np.linspace(min_label, max_label, num=6)  # 5 bins -> 6 edges
 
     def __len__(self):
