@@ -8,13 +8,14 @@ import threading
 import queue
 from sklearn.metrics import r2_score
 from weighted_MSE_loss import WeightedMSELoss
+from weighted_Huber_loss import WeightedHuberLoss
 
 
 def train_model(model, train_files, val_files, device, dense_weight_model,epochs=10, learning_rate=0.001, batch_size=64):
     model = model.to(device)
     best_val_loss = float('inf')
 
-    criterion = WeightedMSELoss(dense_weight_model)
+    criterion = WeightedHuberLoss(dense_weight_model)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     def load_data(file, data_queue):
