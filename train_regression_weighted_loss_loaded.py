@@ -1,23 +1,22 @@
 # Loaded dataloadder with half precision for faster finetuning
 import torch
-import torch.nn as nn
 import torch.optim as optim
 from checkpoint import save_checkpoint
 from tqdm import tqdm
-from dataloader import create_dataloader
-import threading
-import queue
 from sklearn.metrics import r2_score
-from weighted_L3_loss import WeightedL3Loss
 from torch.cuda.amp import autocast
+from balanced_MSE_loss import BMCLoss
 
 
 def train_model(model, train_loaders, val_loaders, device, dense_weight_model,epochs=10, learning_rate=0.001, batch_size=64):
     model = model.to(device)
     best_val_loss = float('inf')
 
-    criterion = WeightedL3Loss(dense_weight_model)
+    init_noise_sigma = 1.0
+    sigma_lr = 0.001
+    criterion = BMCLoss(init_noise_sigma)
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer.add_param_group({'params': criterion.noise_sigma, 'lr': sigma_lr, 'name': 'noise_sigma'})
 
     for epoch in range(epochs):
         model.train()
