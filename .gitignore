@@ -4,4 +4,3 @@ data/*records*
 myenv
 *.pth
 *.pyc
-*png

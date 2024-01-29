@@ -177,7 +177,7 @@ class ConcatenatedDataset(Dataset):
     def __init__(self, data_file, regression):
         self.regression = regression
         with h5py.File(data_file, 'r') as h5f:
-            self.data = torch.from_numpy(h5f['data'][:]).float().half()
+            self.data = torch.from_numpy(h5f['data'][:]).float()
             self.labels = torch.from_numpy(h5f['labels'][:]).float()
         # self.transform = transforms.Compose([
         #     ResizeTransform(),

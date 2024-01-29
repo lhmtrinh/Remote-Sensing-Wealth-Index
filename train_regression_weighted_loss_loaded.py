@@ -8,7 +8,7 @@ from torch.cuda.amp import autocast
 from balanced_MSE_loss import BMCLoss
 
 
-def train_model(model, train_loaders, val_loaders, device, dense_weight_model,epochs=10, learning_rate=0.001, batch_size=64):
+def train_model(model, train_loaders, val_loaders, device,epochs=10, learning_rate=0.001, batch_size=64):
     model = model.to(device)
     best_val_loss = float('inf')
 
@@ -25,7 +25,7 @@ def train_model(model, train_loaders, val_loaders, device, dense_weight_model,ep
         train_preds, train_labels = [], []
         
         for train_loader in train_loaders:
-            for inputs, labels in tqdm(train_loader):
+            for inputs, labels in train_loader:
                 with autocast():
                     inputs, labels = inputs.to(device), labels.to(device)
                     optimizer.zero_grad()
@@ -49,7 +49,7 @@ def train_model(model, train_loaders, val_loaders, device, dense_weight_model,ep
         for val_loader in val_loaders:
 
             with torch.no_grad():
-                for inputs, labels in tqdm(val_loader):
+                for inputs, labels in val_loader:
                     with autocast():
                         inputs, labels = inputs.to(device), labels.to(device)
                         outputs = model(inputs).squeeze()
