@@ -26,7 +26,12 @@ Code of district, name over years and the long, lat, area in square meters
 # `ward_WI_unweigthedPCA.csv` - Asset index 
 
 ## Description
-Asset index per ward for national survey in 2014 and 2019. Used to generate records
+Asset index per ward for national survey in 2014 and 2019. Used to generate records version 1
+
+# `scaled_PCA_weighted.csv` - Asset index 
+
+## Description
+Asset index per ward for national survey in 2014 and 2019. Scaled to 2016 and 2019 using the data from Worldbank. 
 
 # `ward_data.csv` - Ward data and location 
 
