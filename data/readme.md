@@ -42,3 +42,5 @@ Divide VN into grid of 30m/px by 255 px. Each row is a cell id and a ward within
 
 ## Description
 Unzip files downloaded from google drive. Split files into training, validation and testing by locations. Finally, read each tfRecord, combine them into larger batch of 1024 images per file. Store them as pth files.
+
+Unscaled refer to the version where we use 2014 as label for 2016 images. Otherwise understand that all labels and images are correct
