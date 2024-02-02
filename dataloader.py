@@ -174,10 +174,13 @@ class NormalizeRGBChannels:
         return x
 
 class ConcatenatedDataset(Dataset):
-    def __init__(self, data_file, regression):
+    def __init__(self, data_file, regression, half):
         self.regression = regression
         with h5py.File(data_file, 'r') as h5f:
-            self.data = torch.from_numpy(h5f['data'][:]).float()
+            if half: 
+                self.data = torch.from_numpy(h5f['data'][:]).float().half()
+            else:
+                self.data = torch.from_numpy(h5f['data'][:]).float()
             self.labels = torch.from_numpy(h5f['labels'][:]).float()
         # self.transform = transforms.Compose([
         #     ResizeTransform(),
@@ -209,7 +212,7 @@ class ConcatenatedDataset(Dataset):
         binned_label = np.digitize(label, self.bin_edges) - 1  # Subtract 1 to get bins from 0 to 9
         return data, binned_label
 
-def create_dataloader(file_path, regression, batch_size, num_workers=0):
-    dataset = ConcatenatedDataset(file_path, regression)
+def create_dataloader(file_path, regression, batch_size, num_workers=0, half=True):
+    dataset = ConcatenatedDataset(file_path, regression, half)
     data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
     return data_loader

@@ -5,18 +5,21 @@ from checkpoint import save_checkpoint
 from tqdm import tqdm
 from sklearn.metrics import r2_score
 from torch.cuda.amp import autocast
-from balanced_MSE_loss import BMCLoss
+# from balanced_MSE_loss import BMCLoss
+from weighted_MSE_loss import WeightedMSELoss
 
 
-def train_model(model, train_loaders, val_loaders, device,epochs=10, learning_rate=0.001, batch_size=64):
+def train_model(model, dense_weight_model, train_loaders,val_loaders, device,epochs=10, learning_rate=0.001, batch_size=64):
     model = model.to(device)
     best_val_loss = float('inf')
+    criterion = WeightedMSELoss(dense_weight_model)
+    # init_noise_sigma = 1.0
+    # sigma_lr = 0.001
+    # criterion = BMCLoss(init_noise_sigma)
 
-    init_noise_sigma = 1.0
-    sigma_lr = 0.001
-    criterion = BMCLoss(init_noise_sigma)
+
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    optimizer.add_param_group({'params': criterion.noise_sigma, 'lr': sigma_lr, 'name': 'noise_sigma'})
+    # optimizer.add_param_group({'params': criterion.noise_sigma, 'lr': sigma_lr, 'name': 'noise_sigma'})
 
     for epoch in range(epochs):
         model.train()
