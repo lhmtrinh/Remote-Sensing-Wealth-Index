@@ -21,3 +21,23 @@ class WeightedL3Loss(torch.nn.modules.loss._Loss):
             return torch.sum(weighted_l3_loss)
         else:
             return weighted_l3_loss
+        
+
+class L3Loss(torch.nn.modules.loss._Loss):
+    def __init__(self, size_average=None, reduce=None, reduction='mean'):
+        super(L3Loss, self).__init__(size_average, reduce, reduction)
+
+    def forward(self, input, target):
+        mse_loss = F.mse_loss(input, target, reduction='none')
+
+        with torch.no_grad():
+            mae_loss = F.l1_loss(input, target, reduction= 'none')
+
+        l3_loss = mse_loss * mae_loss
+        
+        if self.reduction == 'mean':
+            return torch.mean(l3_loss)
+        elif self.reduction == 'sum':
+            return torch.sum(l3_loss)
+        else:
+            return l3_loss

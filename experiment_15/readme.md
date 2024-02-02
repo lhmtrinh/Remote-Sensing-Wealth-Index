@@ -49,3 +49,12 @@ Epoch 29/30, Train Loss: 0.0295, Train R2: 0.8545, Val Loss: 0.1434, Val R2: 0.3
 Epoch 30/30, Train Loss: 0.0162, Train R2: 0.9203, Val Loss: 0.1280, Val R2: 0.3968
 Model saved as final_model.pth
 Training completed and final model saved.
+
+
+MAE for bin 1: 1.3468268
+MAE for bin 2: 0.8179501
+MAE for bin 3: 0.48292407
+MAE for bin 4: 0.25444755
+MAE for bin 5: 0.2045858
+MAE for bin 6: 0.20702669
+Weighted MAE: 1.1864262111399033

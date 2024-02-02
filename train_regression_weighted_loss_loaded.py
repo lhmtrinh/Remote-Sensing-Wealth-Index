@@ -1,25 +1,14 @@
 # Loaded dataloadder with half precision for faster finetuning
 import torch
-import torch.optim as optim
 from checkpoint import save_checkpoint
-from tqdm import tqdm
 from sklearn.metrics import r2_score
 from torch.cuda.amp import autocast
-# from balanced_MSE_loss import BMCLoss
-from weighted_MSE_loss import WeightedMSELoss
+from weighted_MAE import weighted_MAE
 
-
-def train_model(model, dense_weight_model, train_loaders,val_loaders, device,epochs=10, learning_rate=0.001, batch_size=64):
+ 
+def train_model(model, criterion, optimizer, train_loaders, val_loaders, device, save_directory,epochs=10):
     model = model.to(device)
     best_val_loss = float('inf')
-    criterion = WeightedMSELoss(dense_weight_model)
-    # init_noise_sigma = 1.0
-    # sigma_lr = 0.001
-    # criterion = BMCLoss(init_noise_sigma)
-
-
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    # optimizer.add_param_group({'params': criterion.noise_sigma, 'lr': sigma_lr, 'name': 'noise_sigma'})
 
     for epoch in range(epochs):
         model.train()
@@ -43,6 +32,7 @@ def train_model(model, dense_weight_model, train_loaders,val_loaders, device,epo
 
         avg_train_loss = total_train_loss / total_train_samples
         train_r2 = r2_score(train_labels, train_preds)
+        train_mae = weighted_MAE(train_labels, train_preds)
 
         model.eval()
         total_val_loss = 0
@@ -64,13 +54,14 @@ def train_model(model, dense_weight_model, train_loaders,val_loaders, device,epo
 
         avg_val_loss = total_val_loss / total_val_samples
         val_r2 = r2_score(val_labels, val_preds)
+        val_mae = weighted_MAE(val_labels, val_preds)
 
-        print(f'Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Train R2: {train_r2:.4f}, Val Loss: {avg_val_loss:.4f}, Val R2: {val_r2:.4f}')
+        print(f'Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Train R2: {train_r2:.4f}, Train weighted MAE: {train_mae:.4f},Val Loss: {avg_val_loss:.4f}, Val R2: {val_r2:.4f}, Val weighted MAE: {val_mae:.4f}')
 
         is_best = avg_val_loss < best_val_loss
         if is_best:
             best_val_loss = avg_val_loss
-            save_checkpoint(model, f'checkpoint_epoch_{epoch+1}.pth')
+            save_checkpoint(model, f'{save_directory}/checkpoint_epoch_{epoch+1}.pth')
 
-    save_checkpoint(model, 'final_model.pth')
+    save_checkpoint(model, f'{save_directory}/final_model.pth')
     print('Training completed and final model saved.')
