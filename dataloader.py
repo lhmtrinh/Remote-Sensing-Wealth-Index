@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 import numpy as np
 import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchvision import transforms
 import h5py
 
@@ -211,8 +211,20 @@ class ConcatenatedDataset(Dataset):
         # Bin the label if not regression
         binned_label = np.digitize(label, self.bin_edges) - 1  # Subtract 1 to get bins from 0 to 9
         return data, binned_label
+    
+def create_dataset(file_paths, regression= True, half=True):
+    # Combine datasets from all files into a single dataset
+    combined_dataset = ConcatenatedDataset(file_paths[0], regression, half)  # Initialize with the first file
+    for file_path in file_paths[1:]:
+        additional_dataset = ConcatenatedDataset(file_path, regression, half)
+        combined_dataset = torch.utils.data.ConcatDataset([combined_dataset, additional_dataset])
 
-def create_dataloader(file_path, regression, batch_size, num_workers=0, half=True):
-    dataset = ConcatenatedDataset(file_path, regression, half)
-    data_loader = DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
-    return data_loader
+def create_dataloader(dataset, batch_size, dense_weight_model=None, num_workers=0):
+    if dense_weight_model != None:
+            # Calculate weights for each data point in the combined dataset for downsampling        
+        weights = dense_weight_model.dense_weight(dataset.labels)
+        sampler = WeightedRandomSampler(weights, len(weights))
+        # Create a DataLoader with the custom sampler
+        return DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, sampler=sampler)
+    
+    return DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
