@@ -212,17 +212,30 @@ class ConcatenatedDataset(Dataset):
         binned_label = np.digitize(label, self.bin_edges) - 1  # Subtract 1 to get bins from 0 to 9
         return data, binned_label
     
-def create_dataset(file_paths, regression= True, half=True):
-    # Combine datasets from all files into a single dataset
-    combined_dataset = ConcatenatedDataset(file_paths[0], regression, half)  # Initialize with the first file
-    for file_path in file_paths[1:]:
-        additional_dataset = ConcatenatedDataset(file_path, regression, half)
-        combined_dataset = torch.utils.data.ConcatDataset([combined_dataset, additional_dataset])
+def create_dataset(file_paths, regression=True, half=True):
+    # Initialize lists to store datasets and labels
+    datasets = []
+    all_labels = []
+
+    # Load each dataset and collect labels
+    for file_path in file_paths:
+        dataset = ConcatenatedDataset(file_path, regression, half)
+        datasets.append(dataset)
+        labels = dataset.labels.numpy() 
+        all_labels.extend(labels)
+    
+    # Combine all datasets
+    combined_dataset = torch.utils.data.ConcatDataset(datasets)
+    
+    # Store the combined labels as an attribute of the combined dataset
+    combined_dataset.all_labels = torch.tensor(all_labels)
+    
+    return combined_dataset
 
 def create_dataloader(dataset, batch_size, dense_weight_model=None, num_workers=0):
     if dense_weight_model != None:
             # Calculate weights for each data point in the combined dataset for downsampling        
-        weights = dense_weight_model.dense_weight(dataset.labels)
+        weights = dense_weight_model.dense_weight(dataset.all_labels)
         sampler = WeightedRandomSampler(weights, len(weights))
         # Create a DataLoader with the custom sampler
         return DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, sampler=sampler)
