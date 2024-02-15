@@ -182,6 +182,7 @@ class ConcatenatedDataset(Dataset):
             else:
                 self.data = torch.from_numpy(h5f['data'][:]).float()
             self.labels = torch.from_numpy(h5f['labels'][:]).float()
+            self.locations = torch.from_numpy(h5f['locations'][:]).float()
         # self.transform = transforms.Compose([
         #     ResizeTransform(),
         #     NormalizeRGBChannels() 
@@ -200,17 +201,18 @@ class ConcatenatedDataset(Dataset):
 
     def __getitem__(self, idx):
         data = self.data[idx]
+        location = self.locations[idx]
         label = self.labels[idx]
         
         if self.transform:
             data = self.transform(data)
 
         if self.regression: 
-            return data, label
+            return data, location, label
         
         # Bin the label if not regression
         binned_label = np.digitize(label, self.bin_edges) - 1  # Subtract 1 to get bins from 0 to 9
-        return data, binned_label
+        return data, location, binned_label
     
 def create_dataset(file_paths, regression=True, half=True):
     # Initialize lists to store datasets and labels

@@ -3,11 +3,12 @@ import torch
 from checkpoint import save_checkpoint
 from sklearn.metrics import r2_score
 from torch.cuda.amp import autocast
-from weighted_MAE import weighted_MAE
+from weighted_MAE import weighted_MAE_evenly
 
  
-def train_model(model, criterion, optimizer, train_loaders, val_loaders, device, save_directory,epochs=10):
+def train_model(model, criterion, optimizer, train_loaders, val_loaders, device, save_directory, location_encoder=None, epochs=10):
     model = model.to(device)
+    location_encoder = location_encoder.to(device)
     best_val_loss = float('inf')
 
     for epoch in range(epochs):
@@ -17,11 +18,17 @@ def train_model(model, criterion, optimizer, train_loaders, val_loaders, device,
         train_preds, train_labels = [], []
         
         for train_loader in train_loaders:
-            for inputs, labels in train_loader:
+            for inputs, locations, labels in train_loader:
                 with autocast():
-                    inputs, labels = inputs.to(device), labels.to(device)
+                    inputs, locations, labels = inputs.to(device), locations.to(device), labels.to(device)
                     optimizer.zero_grad()
-                    outputs = model(inputs).squeeze()
+                    if location_encoder is not None:
+                        with torch.no_grad():
+                            location_embedding = location_encoder(locations)
+                            location_embedding = location_embedding.half()
+                        outputs = model(inputs, location_embedding).squeeze()
+                    else :
+                        outputs = model(inputs).squeeze()
                     loss = criterion(outputs, labels)
                     loss.backward()
                     optimizer.step()
@@ -32,7 +39,7 @@ def train_model(model, criterion, optimizer, train_loaders, val_loaders, device,
 
         avg_train_loss = total_train_loss / total_train_samples
         train_r2 = r2_score(train_labels, train_preds)
-        train_mae = weighted_MAE(train_labels, train_preds)
+        train_mae = weighted_MAE_evenly(train_labels, train_preds)
 
         model.eval()
         total_val_loss = 0
@@ -40,12 +47,17 @@ def train_model(model, criterion, optimizer, train_loaders, val_loaders, device,
         val_preds, val_labels = [], []
 
         for val_loader in val_loaders:
-
             with torch.no_grad():
-                for inputs, labels in val_loader:
+                for inputs, locations, labels in val_loader:
                     with autocast():
-                        inputs, labels = inputs.to(device), labels.to(device)
-                        outputs = model(inputs).squeeze()
+                        inputs, locations, labels = inputs.to(device), locations.to(device), labels.to(device)
+                        if location_encoder is not None:
+                            with torch.no_grad():
+                                location_embedding = location_encoder(locations)
+                                location_embedding = location_embedding.half()
+                            outputs = model(inputs, location_embedding).squeeze()
+                        else :
+                            outputs = model(inputs).squeeze()
                         loss = criterion(outputs, labels)
                         total_val_loss += loss.item() * inputs.size(0)
                     total_val_samples += inputs.size(0)
@@ -54,7 +66,7 @@ def train_model(model, criterion, optimizer, train_loaders, val_loaders, device,
 
         avg_val_loss = total_val_loss / total_val_samples
         val_r2 = r2_score(val_labels, val_preds)
-        val_mae = weighted_MAE(val_labels, val_preds)
+        val_mae = weighted_MAE_evenly(val_labels, val_preds)
 
         print(f'Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Train R2: {train_r2:.4f}, Train weighted MAE: {train_mae:.4f},Val Loss: {avg_val_loss:.4f}, Val R2: {val_r2:.4f}, Val weighted MAE: {val_mae:.4f}')
 
