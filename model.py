@@ -79,3 +79,20 @@ def modify_resnet_model(model):
 
     return model
 
+def register_model_with_hook(model):    
+    # Define a forward hook to capture the outputs of the last conv layer
+    feature_maps = None
+    def hook(module, input, output):
+        nonlocal feature_maps
+        feature_maps = output
+    
+    # Register the hook to the last layer in `layer4`
+    model.layer4[-1].register_forward_hook(hook)
+
+    # Return both the model and a function to get feature maps
+    def get_feature_maps(x):
+        nonlocal feature_maps
+        _ = model(x)  # Perform a forward pass to fill in `feature_maps`
+        return feature_maps
+
+    return get_feature_maps
