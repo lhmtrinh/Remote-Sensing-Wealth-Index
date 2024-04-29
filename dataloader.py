@@ -20,6 +20,8 @@ BAND_KEYS = [
 
 SCALAR_KEYS = ['latitude', 'longitude', 'wi']
 
+LAND_COVER_KEY = ['label']
+
 class SpectralImage:
     def __init__(self, bands_data, scalars):
         """
@@ -41,68 +43,7 @@ class SpectralImage:
         """
         return self.bands_data[band_name]
 
-    def plot(self, band_keys, min_val=0.0, max_val=0.3):
-        """
-        Plots an image using specified bands as RGB channels. 
-        Args:
-        - band_keys (list): The keys for the bands to be used as RGB channels. E.g. ['B4_4', 'B3_4', 'B2_4']
-        - min_val (float): Minimum value for normalization.
-        - max_val (float): Maximum value for normalization.
-        """
-        # Initialize an empty array for the image
-        arr = np.zeros((self.bands_data[band_keys[0]].shape[0], self.bands_data[band_keys[0]].shape[1], 3))
-
-        # Extract and normalize the bands
-        for i, key in enumerate(band_keys):
-            band_data = self.bands_data[key].numpy()
-            arr[:, :, i] = self._normalize_and_clip(band_data, min_val, max_val)
-
-        # Plot the image
-        plt.imshow(arr)
-        plt.axis('off')
-        plt.show()
-
-    def _normalize_and_clip(self, band_data, min_val, max_val):
-        """
-        Normalizes and clips the band data.
-        Args:
-        - band_data (numpy.ndarray): Band data to be normalized and clipped.
-        - min_val (float): Minimum value for normalization.
-        - max_val (float): Maximum value for normalization.
-        Returns:
-        - numpy.ndarray: Normalized and clipped band data.
-        """
-        return np.clip(band_data, min_val, max_val) / (max_val - min_val)
-    
-    ### TODO: Implement code to peform transformation for RGB channels. Figure out the statistics for other channels
-
-def spectral_image_collate(batch):
-    """
-    Collate function to combine a list of SpectralImage objects and labels into a batch.
-
-    Args:
-    - batch (list): A list of tuples, each containing a SpectralImage object and a label.
-
-    Returns:
-    - Tuple containing two elements:
-        - A tensor of shape [batch_size, channels, height, width] for the images.
-        - A tensor of shape [batch_size] for the labels.
-    """
-    # Separate images and labels
-    images, labels = zip(*batch)
-
-    # Stack all channels of each SpectralImage object
-    batch_tensors = [torch.cat([image.bands_data[key].unsqueeze(0) for key in BAND_KEYS], dim=0) for image in images]
-
-    # Stack all images to create a batch
-    batch_tensor = torch.stack(batch_tensors, dim=0)
-
-    # Convert labels to a tensor
-    labels_tensor = torch.tensor(labels, dtype=torch.float)
-
-    return batch_tensor, labels_tensor
-
-def read_tfrecord(tfrecord_path, size=225):
+def read_tfrecord(tfrecord_path, size=225, with_landcover = False):
     """
     Reads a single TFRecord file and extracts the images and label.
 
@@ -121,8 +62,11 @@ def read_tfrecord(tfrecord_path, size=225):
     # Extract scalar values
     scalars = {key: _extract_scalar_value(example, key) for key in SCALAR_KEYS}
 
-    # Extract image tensors
-    images = {key: _extract_image_tensor(example, key, size) for key in BAND_KEYS}
+    if with_landcover:
+        # Extract image tensors
+        images = {key: _extract_image_tensor(example, key, size) for key in BAND_KEYS + LAND_COVER_KEY}
+    else:
+        images = {key: _extract_image_tensor(example, key, size) for key in BAND_KEYS}
 
     # Create a SpectralImage object
     spectral_image = SpectralImage(images, scalars)
@@ -130,7 +74,7 @@ def read_tfrecord(tfrecord_path, size=225):
     # Extract the 'wi' label
     label = scalars.get('wi', 0)  # Default to 0 if 'wi' is not found
     
-    return spectral_image_collate([(spectral_image, label)])
+    return spectral_image_collate([(spectral_image, label)], with_landcover)
 
 def _extract_scalar_value(example, key):
     # Extracts a scalar value from the TFRecord example
@@ -141,6 +85,35 @@ def _extract_image_tensor(example, key, size):
     # Extracts and converts an image tensor from the TFRecord example
     tensor = np.array(example.features.feature[key].float_list.value).reshape(size, size)
     return torch.tensor(tensor, dtype=torch.float)
+
+def spectral_image_collate(batch, with_landcover = False):
+    """
+    Collate function to combine a list of SpectralImage objects and labels into a batch.
+
+    Args:
+    - batch (list): A list of tuples, each containing a SpectralImage object and a label.
+
+    Returns:
+    - Tuple containing two elements:
+        - A tensor of shape [batch_size, channels, height, width] for the images.
+        - A tensor of shape [batch_size] for the labels.
+    """
+    # Separate images and labels
+    images, labels = zip(*batch)
+
+    # Stack all channels of each SpectralImage object
+    if with_landcover:
+        batch_tensors = [torch.cat([image.bands_data[key].unsqueeze(0) for key in BAND_KEYS+LAND_COVER_KEY], dim=0) for image in images]
+    else:
+        batch_tensors = [torch.cat([image.bands_data[key].unsqueeze(0) for key in BAND_KEYS], dim=0) for image in images]
+
+    # Stack all images to create a batch
+    batch_tensor = torch.stack(batch_tensors, dim=0)
+
+    # Convert labels to a tensor
+    labels_tensor = torch.tensor(labels, dtype=torch.float)
+
+    return batch_tensor, labels_tensor
 
 class ResizeTransform:
     """Transform to crop and resize the image to 224x224."""

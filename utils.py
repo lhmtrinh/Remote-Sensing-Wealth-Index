@@ -1,6 +1,7 @@
 import re
 import os
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
+import numpy as np
 
 def get_file_paths(directory):
     """
@@ -43,8 +44,6 @@ def plot_scatter(true_labels, predictions, experiment, save_path=None):
     
     plt.show()
 
-
-
 def plot_residual(true_labels, predictions, experiment, save_path=None):
     # Calculate residuals
     residuals = [true - pred for true, pred in zip(true_labels, predictions)]
@@ -65,4 +64,53 @@ def plot_residual(true_labels, predictions, experiment, save_path=None):
         
     plt.show()
 
+def normalize(x):
+    x_normalized = (x - x.min()) / (x.max() - x.min())
+    return x_normalized
 
+def visualize_multispectral_images(image_tensor, alpha=0.25, heatmap=None):
+    # Assuming image_tensor shape is [24, H, W] where 24 channels correspond to different spectral bands
+    fig, axs = plt.subplots(4, 4, figsize=(20, 20))  # 4x4 grid for visualization
+    
+    # Define RGB bands in indices as per given channel order
+    rgb_indices = [
+        [0, 1, 2],  # B4_1, B3_1, B2_1
+        [3, 4, 5],  # B4_2, B3_2, B2_2
+        [6, 7, 8],  # B4_3, B3_3, B2_3
+        [9, 10, 11] # B4_4, B3_4, B2_4
+    ]
+    
+    # NIR/SWIR bands in indices
+    b8_indices = [12, 15, 18, 21]
+    b11_indices = [13, 16, 19, 22]
+    b12_indices = [14, 17, 20, 23]
+
+    # Normalize each channel for visualization
+    image_tensor = (image_tensor - image_tensor.min()) / (image_tensor.max() - image_tensor.min())
+
+    if heatmap is not None:
+        # Normalize and prepare heatmap
+        heatmap = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min())
+        heatmap_rgba = plt.cm.jet(heatmap.cpu().numpy())  # Apply colormap to create RGBA heatmap
+
+    # Plotting RGB images
+    for i, indices in enumerate(rgb_indices):
+        rgb_img = image_tensor[indices].permute(1, 2, 0).cpu().numpy()  # Shape [H, W, 3]
+        axs[0, i].imshow(rgb_img)
+        if heatmap is not None:
+            axs[0, i].imshow(heatmap_rgba, alpha=alpha)  # Overlay the heatmap with transparency
+        axs[0, i].set_title(f'RGB_{i+1}')
+        axs[0, i].axis('off')
+
+    # Plotting B8, B11, B12 images as grayscale
+    for row, indices in enumerate([b8_indices, b11_indices, b12_indices], start=1):
+        for i, index in enumerate(indices):
+            grayscale_img = image_tensor[index].cpu().numpy()
+            axs[row, i].imshow(grayscale_img, cmap='gray')
+            if heatmap is not None:
+                axs[row, i].imshow(heatmap_rgba, alpha=alpha)  # Overlay the heatmap
+            axs[row, i].set_title(f'B{8 + 3*(row-1)}_{i+1}')
+            axs[row, i].axis('off')
+
+    plt.tight_layout()
+    plt.show()
