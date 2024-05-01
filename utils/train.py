@@ -1,9 +1,9 @@
 # Loaded dataloadder with half precision for faster finetuning
 import torch
-from checkpoint import save_checkpoint
+from utils.checkpoint import save_checkpoint
 from sklearn.metrics import r2_score
 from torch.cuda.amp import autocast
-from weighted_MAE import weighted_MAE
+from metrics.weighted_MAE import weighted_MAE
 
  
 def train_model(model, criterion, optimizer, train_loaders, val_loaders, device, save_directory,epochs=10):

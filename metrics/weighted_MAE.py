@@ -8,7 +8,7 @@ def weighted_MAE(true, pred, num_bins=5):
     max_label = 3.094515085220337
 
     # Define bin edges
-    bin_edges = np.linspace(min_label, max_label, num= num_bins+1)  # 4 bins -> 5 edges
+    bin_edges = np.linspace(min_label, max_label, num= num_bins+1)
     bin_edges = bin_edges[1:num_bins]
     # Digitize the true labels into bins
     true_label_bins = np.digitize(true, bin_edges, right=True)

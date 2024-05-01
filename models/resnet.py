@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import models
+from torchvision import transforms
 
 NUM_CHANNELS = 24
 
@@ -96,3 +97,5 @@ def register_model_with_hook(model):
         return feature_maps
 
     return get_feature_maps
+
+
