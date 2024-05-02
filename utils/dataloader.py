@@ -144,10 +144,39 @@ class NormalizeChannels:
         std_nonRGB = self.std_nonRGB * 4    # Repeat std for non-RGB channels
         x[12:24] = transforms.functional.normalize(x[12:24], mean=mean_nonRGB, std=std_nonRGB)
 
-        return x    
+        return x   
+
+class ReshapeAndReorganize():
+    """
+    Reshape and reorganize the input tensor from [batch, 24, height, width] to
+    [batch, channels, time, height, width] with specified channel groups.
+    """
+    def __init__(self):
+        # Define the groups for channel and time dimensions
+        self.channel_groups = [
+            [0, 1, 2, 12, 13, 14],
+            [3, 4, 5, 15, 16, 17],
+            [6, 7, 8, 18, 19, 20],
+            [9, 10, 11, 21, 22, 23]
+        ]
+
+    def __call__(self, x):
+        _, height, width = x.shape
+        channels_per_group = 6
+        time_steps = 4
+
+        # Create a new tensor to hold the reorganized data
+        new_x = torch.zeros((channels_per_group, time_steps, height, width), dtype=x.dtype, device=x.device)
+
+        # Reassign the channels according to the predefined groups
+        for time_idx, group in enumerate(self.channel_groups):
+            for channel_idx, ch in enumerate(group):
+                new_x[channel_idx, time_idx, :, :] = x[ch, :, :]  # Correctly index into new_x and 
+
+        return new_x
 
 class ConcatenatedDataset(Dataset):
-    def __init__(self, data_file, half):
+    def __init__(self, data_file, half, reshape_3d):
         with h5py.File(data_file, 'r') as h5f:
             if half: 
                 self.data = torch.from_numpy(h5f['data'][:]).float().half()
@@ -156,10 +185,12 @@ class ConcatenatedDataset(Dataset):
             self.labels = torch.from_numpy(h5f['labels'][:]).float()
             self.locations = torch.from_numpy(h5f['locations'][:]).float()
 
-        self.transform = transforms.Compose([
-            ResizeTransform(),
-            NormalizeChannels()
-        ])
+        transformations = [ResizeTransform(), NormalizeChannels()]
+        if reshape_3d:
+            transformations += [ReshapeAndReorganize()]
+
+        self.transform = transforms.Compose(transformations)
+
 
     def __len__(self):
         return len(self.data)
@@ -171,14 +202,14 @@ class ConcatenatedDataset(Dataset):
         data = self.transform(data)
         return data, location, label
     
-def create_dataset(file_paths, half=True):
+def create_dataset(file_paths, half=True, reshape_3d=False):
     # Initialize lists to store datasets and labels
     datasets = []
     all_labels = []
 
     # Load each dataset and collect labels
     for file_path in file_paths:
-        dataset = ConcatenatedDataset(file_path, half)
+        dataset = ConcatenatedDataset(file_path, half, reshape_3d)
         datasets.append(dataset)
         labels = dataset.labels.numpy() 
         all_labels.extend(labels)
