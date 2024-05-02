@@ -118,39 +118,33 @@ class ResizeTransform:
     """Transform to crop and resize the image to 224x224."""
     def __call__(self, x):
         return x[:, :224, :224]
-    
-class RescaleTransform:
-    """Transform to scale image pixel values from 0-255 to 0-1."""
-    def __call__(self, x):
-        return x / 255.0
-    
+
 class NormalizeChannels:
     """
     Normalize each set of RGB channels independently.
-    ImageNet mean and std are used for normalization.
+    ImageNet mean and std are used for normalization of RGB channels,
+    specific mean and std are used for non-RGB channels.
     """
     def __init__(self):
         self.mean_RGB = [0.485, 0.456, 0.406]
         self.std_RGB = [0.229, 0.224, 0.225]
-        # self.mean_nonRGB = [0.45,0.45,0.45]
-        # self.std_nonRGB = [0.25,0.25,0.25]
-
+        self.mean_nonRGB = [0.2599, 0.1838, 0.0986] # Based on training set
+        self.std_nonRGB = [0.109, 0.0976, 0.07714] # Based on training set
 
     def __call__(self, x):
         x = x.clone()  # Clone to avoid modifying the original tensor
 
         # Normalize RGB channels
-        mean_RGB = self.mean_RGB * 4
-        std_RGB = self.mean_RGB*4        
-        x[0:12] = transforms.functional.normalize(x[0:12], mean=mean_RGB, std=std_RGB)
+        mean_RGB = self.mean_RGB * 4  # Repeat mean for RGB channels
+        std_RGB = self.std_RGB * 4    # Repeat std for RGB channels
+        x[:12] = transforms.functional.normalize(x[:12], mean=mean_RGB, std=std_RGB)
         
+        # Normalize Non-RGB channels
+        mean_nonRGB = self.mean_nonRGB * 4  # Repeat mean for non-RGB channels
+        std_nonRGB = self.std_nonRGB * 4    # Repeat std for non-RGB channels
+        x[12:24] = transforms.functional.normalize(x[12:24], mean=mean_nonRGB, std=std_nonRGB)
 
-        # Normalize Non RGB channels
-        # mean_nonRGB = self.mean_nonRGB * 4
-        # std_nonRGB = self.std_nonRGB * 4
-        # x[12:24] = transforms.functional.normalize(x[12:24], mean=mean_nonRGB, std=std_nonRGB)
-
-        return x
+        return x    
 
 class ConcatenatedDataset(Dataset):
     def __init__(self, data_file, half):
@@ -164,7 +158,6 @@ class ConcatenatedDataset(Dataset):
 
         self.transform = transforms.Compose([
             ResizeTransform(),
-            RescaleTransform(),
             NormalizeChannels()
         ])
 
