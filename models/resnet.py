@@ -74,7 +74,7 @@ def modify_resnet_model(model):
         new_conv1.weight[:, 12:, :, :] = mean_rgb_weights.repeat(1, NUM_CHANNELS - 12, 1, 1)
 
         # Scale all weights by 3/C
-        new_conv1.weight.data *= 3 / NUM_CHANNELS
+        new_conv1.weight.data *= (3 / NUM_CHANNELS)**0.5
 
     model.conv1 = new_conv1
 

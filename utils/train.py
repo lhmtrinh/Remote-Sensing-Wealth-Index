@@ -6,7 +6,7 @@ from torch.cuda.amp import autocast
 from metrics.balanced_MAE import balanced_MAE
 
  
-def train_model(model, criterion, optimizer, train_loader, val_loader, device, save_directory,epochs=10):
+def train_model(model, criterion, optimizer, scheduler,train_loader, val_loader, device, save_directory,epochs=10):
     model = model.to(device)
     best_val_loss = float('inf')
 
@@ -16,7 +16,7 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, s
         total_train_samples = 0
         train_preds, train_labels = [], []
         
-        for inputs, labels in train_loader:
+        for inputs, _, labels in train_loader:
             with autocast():
                 inputs, labels = inputs.to(device), labels.to(device)
                 optimizer.zero_grad()
@@ -39,7 +39,7 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, s
         val_preds, val_labels = [], []
 
         with torch.no_grad():
-            for inputs, labels in val_loader:
+            for inputs, _, labels in val_loader:
                 with autocast():
                     inputs, labels = inputs.to(device), labels.to(device)
                     outputs = model(inputs).squeeze()
@@ -54,6 +54,8 @@ def train_model(model, criterion, optimizer, train_loader, val_loader, device, s
         val_mae = balanced_MAE(val_labels, val_preds)
 
         print(f'Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Train R2: {train_r2:.4f}, Train weighted MAE: {train_mae:.4f},Val Loss: {avg_val_loss:.4f}, Val R2: {val_r2:.4f}, Val weighted MAE: {val_mae:.4f}')
+        
+        scheduler.step()
 
         is_best = avg_val_loss < best_val_loss
         if is_best:

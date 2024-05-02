@@ -1,8 +1,13 @@
 import torchvision
 import torch
 
-def load_swin3d():
-    model = torchvision.models.video.swin3d_b(weights="Swin3D_B_Weights.KINETICS400_IMAGENET22K_V1")
+def load_swin3d(version="base"):
+    if version == "base":
+        model = torchvision.models.video.swin3d_b(weights="Swin3D_B_Weights.KINETICS400_IMAGENET22K_V1")
+    elif version == "tiny":
+        model = torchvision.models.video.swin3d_t(weights="Swin3D_T_Weights.KINETICS400_V1")
+    else: 
+        return None
 
     # Access the first Conv3d layer which is part of the PatchEmbed3d module
     first_conv_layer = model.patch_embed.proj
@@ -17,16 +22,20 @@ def load_swin3d():
         bias=first_conv_layer.bias is not None
     )
 
+    head = model.head
+    new_head = torch.nn.Linear(in_features=head.in_features, out_features=1, bias = True)
+
     # Initialize the weights for the new Conv3d layer
     # One common method is to average the original RGB weights and replicate them for the additional channels
     with torch.no_grad():
         original_weights = first_conv_layer.weight
         # Extend the weights by repeating the mean of the original three channels
         new_weights = torch.cat([original_weights, original_weights.mean(dim=1, keepdim=True).repeat(1, 3, 1, 1, 1)], dim=1)
-        new_first_conv.weight.data = new_weights
-        model.head = torch.nn.Linear(in_features=1024, out_features=1, bias=True)
-
+        scale_factor = (3 / 6) ** 0.5
+        new_first_conv.weight.data = new_weights * scale_factor
+        
     # Replace the original first convolutional layer with the new one
     model.patch_embed.proj = new_first_conv
+    model.head = new_head
 
     return model
