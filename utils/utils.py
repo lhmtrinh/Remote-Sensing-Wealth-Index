@@ -1,5 +1,6 @@
 import re
 import os
+import glob
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -114,3 +115,25 @@ def visualize_multispectral_images(image_tensor, alpha=0.25, heatmap=None):
 
     plt.tight_layout()
     plt.show()
+
+def find_latest_checkpoint(directory_path):
+    # Pattern to match 'checkpoint_epoch_{number}.pth' and extract the number
+    pattern = re.compile(r'checkpoint_epoch_(\d+)\.pth')
+
+    # List all files matching the pattern in the directory
+    files = glob.glob(os.path.join(directory_path, 'checkpoint_epoch_*.pth'))
+
+    # Initialize variables to keep track of the highest epoch number and the corresponding file
+    max_epoch = -1
+    latest_checkpoint_file = None
+
+    # Loop through the files to find the one with the highest epoch number
+    for file in files:
+        match = pattern.search(os.path.basename(file))
+        if match:
+            epoch_number = int(match.group(1))
+            if epoch_number > max_epoch:
+                max_epoch = epoch_number
+                latest_checkpoint_file = file
+
+    return latest_checkpoint_file

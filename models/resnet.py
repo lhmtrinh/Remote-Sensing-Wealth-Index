@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 from torchvision import models
+from torchvision.models.resnet import ResNet50_Weights
 from torchvision import transforms
 
 NUM_CHANNELS = 24
 
-def load_resnet_model(model_name, num_classes):
+def load_resnet_model(num_classes=1):
     """
     Loads a pre-trained ResNet model and modifies the fully connected layer and conv1 layer to accept more channels.
 
@@ -16,16 +17,8 @@ def load_resnet_model(model_name, num_classes):
     Returns:
     - model (torch.nn.Module): Modified ResNet model.
     """
-    # Load the pre-trained ResNet model
-    if model_name == 'resnet18':
-        model = models.resnet18(pretrained=True)
-    elif model_name == 'resnet34':
-        model = models.resnet34(pretrained=True)
-    elif model_name == 'resnet50':
-        model = models.resnet50(pretrained=True)
-    else:
-        raise ValueError("Unsupported ResNet model: {}".format(model_name))
-
+    model = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+    
     # Modify the fully connected layer
     num_ftrs = model.fc.in_features
     model.fc = nn.Linear(num_ftrs, num_classes)

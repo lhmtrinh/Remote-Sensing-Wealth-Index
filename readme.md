@@ -1,38 +1,30 @@
 Using Remote sensing data (satellite images) to predict wealth index
 
-Experiment ./ex_1 L2
-Weighted MAE: 0.557296993384298
-R2: 0.4776456248795229
+Experiment ./experiments/ex_2 L2
+Balanced MAE: 0.4834284583727519
+R2: 0.514591093373781
 
-Experiment ./ex_2 L3
-Weighted MAE: 0.4941333113461593
-R2: 0.5005933587126713
+Experiment ./experiments/ex_4 L3
+Balanced MAE: 0.41832434634367627
+R2: 0.5394243303577049
 
-Experiment ./ex_3 Weigthed L2 (alpha=0.25)
-Weighted MAE: 0.4553818057958808
-R2: 0.47338249364528473
+Experiment ./experiments/ex_5 Weigthed L2 (alpha=0.25)
+Balanced MAE: 0.4293614874283473
+R2: 0.5567614928932609
 
-Experiment ./ex_4 Weigthed L2 (alpha=0.5)
-Weighted MAE: 0.43894114958100655
-R2: 0.5159420194721844
+Experiment ./experiments/ex_6 Weigthed L2 (alpha=0.5)
+Balanced MAE: 0.4180254836877187
+R2: 0.5671873237530554
 
-Experiment ./ex_5 BMC
-Weighted MAE: 0.3216155218040328
-R2: 0.3344380841102883
+Experiment ./experiments/ex_7 Weighted sampling (alpha=0.25)
+Balanced MAE: 0.412386953830719
+R2: 0.5984222679846123
 
-Experiment ./ex_6 Weighted sampling (alpha=0.25)
-Weighted MAE: 0.5182785738368875
-R2: 0.5069881512858971
+Experiment ./experiments/ex_8 Weighted sampling (alpha=0.5)
+Balanced MAE: 0.40852029124895733
+R2: 0.5854092559603995
 
-Experiment ./ex_7 Weighted sampling (alpha=0.5)
-Weighted MAE: 0.4404844307106965
-R2: 0.5432679999459393
-
-Experiment ./ex_8 BMC location embedding
-Weighted MAE: 0.5679644213303636
-R2: -0.3087844379872071
-
-Experiment ./ex_9 L2 location embedding
-Weighted MAE: 0.5159589080873886
-R2: 0.5394245321645916
+Experiment ./experiments/ex_9 BMC
+Balanced MAE: 0.4377320508162181
+R2: 0.4311011178417339
 
