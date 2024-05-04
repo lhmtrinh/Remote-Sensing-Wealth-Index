@@ -1,5 +1,5 @@
 import torch
-from utils import normalize
+from utils.utils import normalize
 import torch.nn.functional as F
 import torchvision.transforms.functional as TF
 
@@ -25,7 +25,7 @@ def LOTS(imageinit, iterations, model, get_feature_maps, device,tau=0.1, alpha=0
             imageadv.grad.data.zero_()
         else:
             break
-    return imageadv.detach()  # Detach the image from the current graph to prevent further gradient computation
+    return imageadv.detach(), distance  # Detach the image from the current graph to prevent further gradient computation
 
 def calculate_activation_map(imageinit, imageadv, filter_size, normalize = False):
     # imageinit size [C, H, W]
