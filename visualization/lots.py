@@ -25,12 +25,12 @@ def LOTS(imageinit, iterations, model, get_feature_maps, device,tau=0.1, alpha=0
             imageadv.grad.data.zero_()
         else:
             break
-    return imageadv.detach(), distance  # Detach the image from the current graph to prevent further gradient computation
+    return imageadv.detach(), distance.detach()  # Detach the image from the current graph to prevent further gradient computation
 
-def calculate_activation_map(imageinit, imageadv, filter_size, normalize = False):
+def calculate_activation_map(imageinit, imageadv, filter_size, with_normalize = False):
     # imageinit size [C, H, W]
     perturbation = torch.abs(imageinit - imageadv).mean(dim = 0) # mean across channels
-    if not normalize:
+    if not with_normalize:
         return perturbation
     perturbation_norm = normalize(perturbation)
     perturbation_blurred = TF.gaussian_blur(perturbation_norm.unsqueeze(0).unsqueeze(0),
