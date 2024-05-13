@@ -53,7 +53,7 @@ def train_model(model, criterion, optimizer, scheduler,train_loader, val_loader,
         val_r2 = r2_score(val_labels, val_preds)
         val_mae = balanced_MAE(val_labels, val_preds)
 
-        print(f'Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Train R2: {train_r2:.4f}, Train weighted MAE: {train_mae:.4f},Val Loss: {avg_val_loss:.4f}, Val R2: {val_r2:.4f}, Val weighted MAE: {val_mae:.4f}')
+        print(f'Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss:.4f}, Train R2: {train_r2:.4f}, Train b-MAE: {train_mae:.4f},Val Loss: {avg_val_loss:.4f}, Val R2: {val_r2:.4f}, Val b-MAE: {val_mae:.4f}')
         
         scheduler.step()
 
