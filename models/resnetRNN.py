@@ -3,7 +3,7 @@ import torch.nn as nn
 from torchvision import models
 from torchvision.models.resnet import ResNet50_Weights
 
-NUM_CHANNELS = 24
+NUM_CHANNELS = 6
 
 class ResNetRNN(nn.Module):
     def __init__(self, num_classes=1, rnn_hidden_size=128, rnn_num_layers=1, bidirectional=False):
@@ -11,6 +11,7 @@ class ResNetRNN(nn.Module):
         
         # Load and modify ResNet
         self.resnet = models.resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
+        num_ftrs = self.resnet.fc.in_features  # Extract the number of input features for the original FC layer
         self.resnet.fc = nn.Identity()  # Remove the fully connected layer
         self.resnet = modify_resnet_model(self.resnet)
         
@@ -21,7 +22,7 @@ class ResNetRNN(nn.Module):
         rnn_directions = 2 if bidirectional else 1
         
         # Define RNN layer
-        self.rnn = nn.LSTM(input_size=self.resnet.fc.in_features, hidden_size=rnn_hidden_size, 
+        self.rnn = nn.LSTM(input_size=num_ftrs, hidden_size=rnn_hidden_size, 
                            num_layers=rnn_num_layers, batch_first=True, bidirectional=bidirectional)
         
         # Fully connected layer
@@ -66,19 +67,19 @@ def modify_resnet_model(model):
         # First set of RGB channels
         new_conv1.weight[:, 0:3, :, :] = original_conv1.weight.clone()
         # Second set of RGB channels
-        new_conv1.weight[:, 3:6, :, :] = original_conv1.weight.clone()
-        # Third set of RGB channels
-        new_conv1.weight[:, 6:9, :, :] = original_conv1.weight.clone()
-        # Fourth set of RGB channels
-        new_conv1.weight[:, 9:12, :, :] = original_conv1.weight.clone()
-
         # Initialize the weights for the non-RGB channels as the mean of the RGB channel weights
         mean_rgb_weights = original_conv1.weight.mean(dim=1, keepdim=True)
-        new_conv1.weight[:, 12:, :, :] = mean_rgb_weights.repeat(1, NUM_CHANNELS - 12, 1, 1)
+        new_conv1.weight[:, 3:, :, :] = mean_rgb_weights.repeat(1, NUM_CHANNELS - 3, 1, 1)
 
         # Scale all weights by 3/C
         new_conv1.weight.data *= (3 / NUM_CHANNELS)**0.5
 
     model.conv1 = new_conv1
 
+    return model
+
+def load_resnetRNN(num_classes=1, rnn_hidden_size=128, rnn_num_layers=1, bidirectional=False):
+    
+    model = ResNetRNN(num_classes=num_classes, rnn_hidden_size=rnn_hidden_size, 
+                      rnn_num_layers=rnn_num_layers, bidirectional=bidirectional)
     return model
